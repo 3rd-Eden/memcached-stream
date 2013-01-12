@@ -14,13 +14,29 @@ var logger = new(require('devnull'))({ timestamp: false, namespacing: 0 });
 /**
  * Preparation code.
  */
+var EventEmitter = require('events').EventEmitter;
+
+// Prototype based initalization
+function Foo() {
+  EventEmitter.apply(this, arguments);
+}
+
+Foo.prototype = new EventEmitter;
+Foo.prototype.constructor = Foo;
+
+// __proto__
+function Bar() {
+
+}
+
+Bar.__proto__ = EventEmitter.prototype;
 
 (
   new benchmark.Suite()
-).add('<test1>', function test1() {
-
-}).add('<test2>', function test2() {
-
+).add('Standard prototype inherit invocation', function test1() {
+  var x = new Foo();
+}).add('__proto__ inherit invocation', function test2() {
+  var x = new Bar();
 }).on('cycle', function cycle(e) {
   var details = e.target;
 
