@@ -20,9 +20,10 @@
   "author": "Arnout Kazemier <info@3rd-Eden.com>",
   "license": "MIT",
   "devDependencies": {
-    "benchmark": "~1.0.0",
-    "microtime": "~0.3.3",
-    "mocha": "~1.8.1",
-    "chai": "~1.4.2"
+    "benchmark": "1.0.x",
+    "microtime": "0.3.x",
+    "devnull": "0.0.x",
+    "mocha": "1.8.x",
+    "chai": "1.4.x"
   }
 }
