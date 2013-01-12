@@ -14,39 +14,27 @@ var logger = new(require('devnull'))({ timestamp: false, namespacing: 0 });
 /**
  * Preparation code.
  */
-var EventEmitter = require('events').EventEmitter
-  , util = require('util');
-
-// Prototype based initalization
 function Foo() {
-  EventEmitter.apply(this, arguments);
+  this.readable = true;
 }
 
-Foo.prototype = new EventEmitter;
-Foo.prototype.constructor = Foo;
-
-// __proto__
 function Bar() {
-
 }
 
-Bar.__proto__ = EventEmitter.prototype;
-
-// utils.inherit
-function Baz() {
-  EventEmitter.apply(this, arguments);
-}
-
-util.inherits(Baz, EventEmitter);
+Bar.prototype.readable = true;
 
 (
   new benchmark.Suite()
-).add('Standard prototype inherit invocation', function test1() {
-  var x = new Foo();
-}).add('__proto__ inherit invocation', function test2() {
-  var x = new Bar();
-}).add('util.inhertis', function test3() {
-  var x = new Baz();
+).add('assigning propertys on `this`', function test1() {
+  var x = new Foo()
+    , y;
+
+  if (x.readable) y = x.readable;
+}).add('assigning propertys on the prototype', function test2() {
+  var x = new Bar()
+    , y;
+
+  if (x.readable) y = x.readable;
 }).on('cycle', function cycle(e) {
   var details = e.target;
 
