@@ -77,60 +77,104 @@ Parser.prototype.write = function write(data) {
   return true;
 };
 
+/**
+ * Parse the memcached protocol.
+ *
+ * @api private
+ */
 Parser.prototype.parse = function parse() {
-  var command = this.queue
-    , char = command.charCodeAt(0);
+  var data = this.queue
+    , length = data.length
+    , i = 0
+    , err
+    , pos;
 
-  // @TODO Order this in order of importance
-  if (char === 67) {
-    // CLIENT_ERROR
-  } else if (char === 68) {
-    // DELETED
-  } else if (char === 69) {
-    // END,ERROR,EXISTS
-    var second = command.charCodeAt(1);
-    if (second === 78) {
-      // END
-    } else if (second === 88) {
-      // EXISTS
+  for (; i < length; i++) {
+    pos = data.charCodeAt(i);
+
+    // @TODO Order this in order of importance
+    if (pos === 67) {
+      // CLIENT_ERROR
+      err = data.slice(i + 13, data.indexOf('\r\n', i + 12));
+      this.emit('error', new Error(err));
+
+      // message length + command + \r\n
+      i += (err.length + 15);
+    } else if (pos === 68) {
+      // DELETED
+      this.emit('response', 'DELETED');
+      i += 9;
+    } else if (pos === 69) {
+      // END, ERROR, EXISTS
+      pos = data.charCodeAt(i + 1);
+      if (pos === 78) {
+        // END
+        this.emit('response', 'END');
+        i += 5;
+      } else if (pos === 88) {
+        // EXISTS
+        this.emit('response', 'EXISTS');
+        i += 8;
+      } else {
+        // ERROR
+        this.emit('error', new Error('Command not known by server'));
+        i += 7;
+      }
+    } else if (pos === 78) {
+      // NOT_STORED, NOT_FOUND
+      pos = data.charCodeAt(i + 4);
+      if (pos === 70) {
+        // NOT_FOUND
+        this.emit('response', 'NOT_FOUND');
+        i += 11;
+      } else {
+        // NOT_STORED
+        this.emit('response', 'NOT_STORED');
+        i += 12;
+      }
+    } else if (pos === 79) {
+      // OK
+      this.emit('response', 'OK');
+      i += 4;
+    } else if (pos === 83) {
+      // SERVER_ERROR, STAT, STORED
+      pos = data.charCodeAt(i + 2);
+      if (pos === 82) {
+        // SERVER_ERROR (12)
+        err = data.slice(i + 11, data.indexOf('\r\n', i + 11));
+        this.emit('error', new Error(err));
+
+        // message length + command + \r\n
+        i += (err.length + 14);
+      } else if (pos === 79) {
+        // STORED
+        this.emit('response', 'STORED');
+        i += 8;
+      } else {
+        // STAT
+      }
+    } else if (pos === 84) {
+      // TOUCHED
+      this.emit('response', 'TOUCHED');
+      i += 9;
+    } else if (pos === 86) {
+      // VALUE, VERSION
+      pos = data.charCodeAt(i + 1);
+      if (pos === 65) {
+        // VALUE
+      } else {
+        // VERSION
+      }
+    } else if (pos >= 48 && pos <= 57) {
+      // numberic response, INC/DEC/ STAT value
     } else {
-      // ERROR
+      // UNKOWN RESPONSE
+      this.emit('error', new Error('Unknown response'));
     }
-  } else if (char === 78) {
-    // NOT_STORED, NOT_FOUND
-    var second = command.charCodeAt(4);
-    if (second === 70) {
-      // NOT_FOUND
-    } else {
-      // NOT_STORED
-    }
-  } else if (char === 79) {
-    // OK
-  } else if (char === 83) {
-    // SERVER_ERROR, STAT, STORED
-    var second = command.charCodeAt(2);
-    if (second === 82) {
-      // SERVER_ERROR
-    } else if (second === 79) {
-      // STORED
-    } else {
-      // STAT
-    }
-  } else if (char === 84) {
-    // TOUCHED
-  } else if (char === 86) {
-    // VALUE, VERSION
-    var second = command.charCodeAt(1);
-    if (second === 65) {
-      // VALUE
-    } else {
-      // VERSION
-    }
-  } else if (char >= 48 && char <= 57) {
-    // numberic response, INC/DEC/ STAT value
-  } else {
-    // UNKOWN RESPONSE
   }
+
+  // Removed a chunk of parsed data.
+  this.queue = data.slice(i);
 };
 
 Parser.prototype.end = function end(buffer) {
