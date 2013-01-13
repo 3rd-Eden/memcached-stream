@@ -12,11 +12,12 @@ var Stream = require('stream');
  * @param {Object} options
  */
 function Parser(options) {
+  options = options || {};
   // Assigning properties on `this` is faster then adding it to the prototype
 
   // Stream interface related properties
-  this.readable = true;
-  this.writable = true;
+  this.readable = 'readable' in options ? options.readable : true;
+  this.writable = 'writable' in options ? options.writable : true;
 
   // Parser related properties
   this.queue = '';    // This is where the server responses are parsed from
@@ -27,7 +28,7 @@ function Parser(options) {
  * Using __proto__ might not be standard, but it's faster than inheriting
  * normally from a different class.
  */
-Parser.__proto__ = Stream.prototype;
+Parser.prototype.__proto__ = Stream.prototype;
 
 Parser.responses = Object.create(null);
 [
@@ -74,7 +75,7 @@ Parser.prototype.write = function write(data) {
     this.parse();
   }
 
-  return true;
+  return this.writable;
 };
 
 /**
@@ -86,20 +87,21 @@ Parser.prototype.parse = function parse() {
   var data = this.queue
     , length = data.length
     , i = 0
-    , err
+    , msg
     , pos;
 
   for (; i < length; i++) {
     pos = data.charCodeAt(i);
 
     // @TODO Order this in order of importance
+    // @TODO Check if we actually have all data, by checking for the \r\n
     if (pos === 67) {
       // CLIENT_ERROR
-      err = data.slice(i + 13, data.indexOf('\r\n', i + 12));
-      this.emit('error', new Error(err));
+      msg = data.slice(i + 13, data.indexOf('\r\n', i + 12));
+      this.emit('error', new Error(msg));
 
       // message length + command + \r\n
-      i += (err.length + 15);
+      i += (msg.length + 15);
     } else if (pos === 68) {
       // DELETED
       this.emit('response', 'DELETED');
@@ -141,11 +143,11 @@ Parser.prototype.parse = function parse() {
       pos = data.charCodeAt(i + 2);
       if (pos === 82) {
         // SERVER_ERROR (12)
-        err = data.slice(i + 11, data.indexOf('\r\n', i + 11));
-        this.emit('error', new Error(err));
+        msg = data.slice(i + 13, data.indexOf('\r\n', i + 13));
+        this.emit('error', new Error(msg));
 
         // message length + command + \r\n
-        i += (err.length + 14);
+        i += (msg.length + 15);
       } else if (pos === 79) {
         // STORED
         this.emit('response', 'STORED');
@@ -164,9 +166,22 @@ Parser.prototype.parse = function parse() {
         // VALUE
       } else {
         // VERSION
+        msg = data.slice(i + 8, data.indexOf('\r\n', i + 8));
+        this.emit('response', 'VERSION', msg);
+
+        // message length + command + \r\n
+        i += (msg.length + 10);
       }
     } else if (pos >= 48 && pos <= 57) {
       // numberic response, INC/DEC/ STAT value
+      msg = data.slice(i, data.indexOf('\r\n', i));
+
+      if (+msg) {
+        this.response('response', 'INCR/DECR', msg);
+        i += (msg.length + 2);
+      } else {
+        // @TODO handle size response
+      }
     } else {
       // UNKOWN RESPONSE
       this.emit('error', new Error('Unknown response'));
@@ -177,7 +192,12 @@ Parser.prototype.parse = function parse() {
   this.queue = data.slice(i);
 };
 
-Parser.prototype.end = function end(buffer) {
+Parser.prototype.end = function end(data) {
+  if (data) {
+    this.queue += data;
+    this.parse();
+  }
+
   this.writable = false;
 };
 
