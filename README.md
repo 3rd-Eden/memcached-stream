@@ -1,4 +1,10 @@
-memcached-stream
-================
+# memcached-stream
 
-High performance streaming memcached protocol parser for Node.js. Code name: flaming-octo-bear
+#### Codename: flaming-octo-bear (according to github repo name generator)
+
+Memcached-stream is a high performance stream memcached (ascii) protocol parser
+for Node.js.
+
+## LICENSE
+
+MIT
