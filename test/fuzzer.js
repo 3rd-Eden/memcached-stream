@@ -36,7 +36,7 @@ function Fuzzer(options) {
   //
   // Fuzzer configuration.
   //
-  this.config.set('interval', 100);             // each x send a new response
+  this.config.set('interval', 10);              // each <x> ms send a new response
   this.config.set('respones', 25000);           // the amount of responses to send
   this.config.set('auto close', true);          // automatically close the connection
   this.config.set('write log', true);           // should we write a log send data
@@ -182,15 +182,15 @@ Fuzzer.responders.STAT = function fabricate(config, done){
 };
 
 [
-  'DELETED'
-, 'END'
-, 'ERROR'
-, 'EXISTS'
-, 'NOT_FOUND'
-, 'NOT_STORED'
-, 'OK'
-, 'STORED'
-, 'TOUCHED'
+  { response: 'DELETED' }
+, { response: 'END' }
+, { response: 'ERROR' }
+, { response: 'EXISTS' }
+, { response: 'NOT_FOUND' }
+, { response: 'NOT_STORED' }
+, { response: 'OK' }
+, { response: 'STORED' }
+, { response: 'TOUCHED'}
 ].forEach(function single(api) {
   var value = api.response;
 
