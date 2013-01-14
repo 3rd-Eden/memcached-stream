@@ -1,3 +1,4 @@
+/*global portnumbers*/
 describe('memcached-stream', function () {
   'use strict';
 
@@ -6,7 +7,9 @@ describe('memcached-stream', function () {
 
   chai.Assertion.includeStack = true;
 
-  var stream = require('../index')
+  var net = require('net')
+    , fuzzy = require('./fuzzer')
+    , stream = require('../index')
     , Parser = stream.Parser;
 
   it('exposes the parser', function () {
@@ -31,6 +34,35 @@ describe('memcached-stream', function () {
         var memcached = new Parser();
 
         expect(memcached.write('END\r\n')).to.equal(true);
+      });
+    });
+
+    describe('#pipe', function () {
+      it('pipes to a net.Connection', function (done) {
+        var server = fuzzy.createServer({ responses: 100 })
+          , memcached = new Parser()
+          , port = portnumbers;
+
+        this.timeout(20E3);
+
+        memcached.on('end', function () {
+          server.close();
+          done();
+        });
+
+        memcached.on('error', function () {
+
+        });
+
+        memcached.on('response', function () {
+
+        });
+
+        server.listen(port, function (err) {
+          if (err) return done(err);
+
+          net.connect(port).pipe(memcached);
+        });
       });
     });
   });
