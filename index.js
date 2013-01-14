@@ -164,6 +164,37 @@ Parser.prototype.parse = function parse() {
       pos = data.charCodeAt(i + 1);
       if (pos === 65) {
         // VALUE
+        var start = i
+          , bytes
+          , flags
+          , key
+          , cas;
+
+        // @TODO length folding just like we do in #write
+        // @TODO test inline var statement vs outside loop var statement
+        // @TODO test if saving the start is a good idea or just
+
+        // key name
+        i += 6;
+        key = data.slice(i, data.indexOf(' ', i));
+
+        // flags
+        i += key.length + 1;
+        flags = data.slice(i, data.indexOf(' ', i));
+
+        // bytes
+        i += flags.length + 1;
+        bytes = data.slice(i, data.indexOf(' ', i));
+
+        // Now that we know how much bytes we should expect to have all the
+        // content or if we need to wait and buffer moar
+        if (+bytes >= length - i) {
+          i = start;
+          break;
+        }
+
+        // determin if we have an optional cas
+        // @TODO
       } else {
         // VERSION
         msg = data.slice(i + 8, data.indexOf('\r\n', i + 8));
@@ -177,7 +208,7 @@ Parser.prototype.parse = function parse() {
       msg = data.slice(i, data.indexOf('\r\n', i));
 
       if (+msg) {
-        this.response('response', 'INCR/DECR', msg);
+        this.emit('response', 'INCR/DECR', msg);
         i += (msg.length + 2);
       } else {
         // @TODO handle size response
