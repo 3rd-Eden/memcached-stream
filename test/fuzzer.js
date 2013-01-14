@@ -38,6 +38,7 @@ function Fuzzer(options) {
   //
   this.config.set('interval', 10);              // each <x> ms send a new response
   this.config.set('respones', 25000);           // the amount of responses to send
+  this.config.set('unique values', 25);         // unique VALUE responses (stored in mem)
   this.config.set('auto close', true);          // automatically close the connection
   this.config.set('write log', true);           // should we write a log send data
   this.config.set('log location', __dirname);   // where to write the log
@@ -201,7 +202,42 @@ Fuzzer.responders.STAT = function fabricate(config, done){
   Fuzzer.responders[value].weight = api.weight || 0;
 });
 
+var values = [];
+setTimeout(function () {
+  // Parser hell, all values, separated by new lines
+  values.push(Object.key(Fuzzer.responders).join('\r\n'));
+}, 0);
+
 Fuzzer.responders.VALUE = function fabricate(config, done){
+  var cas = Math.floor(Math.random() * 20) % 2
+    , size = Math.floor(Math.random() * this.config.get('max value size'))
+    , keysize = Math.floor(Math.random() * this.config.get('max key size'))
+    , set = Math.floor(Math.random() * 5)
+    , res = ''
+    , response
+    , length
+    , key;
+
+  // Did we need to generate a cas value?
+  if (cas) cas = Math.floor(Math.random() * this.config.get('responses'));
+  if (!set) set = 1;
+
+  if (values.lenth >= config.get('unique values')) {
+    while (set--) {
+      response = values[Math.floor(Math.random() * values.length)];
+      size = Buffer.byteLength(response);
+
+      // @TODO slice off the key from the content
+      res += 'VALUE <key> 0 '+ size + (cas ? ' '+ cas : '')
+        + '\r\n'
+        + response
+        + '\r\n';
+    }
+
+    res += 'END\r\n';
+    return done(undefined, res);
+  }
+
   // do value <key> <flags> <bytes> [optional cas]\r\n data\r\nEND\r\n
   // should also send multipe value's
 
@@ -209,8 +245,12 @@ Fuzzer.responders.VALUE = function fabricate(config, done){
 };
 
 Fuzzer.responders.VERSION = function fabricate(config, done){
+  var major = Math.floor(Math.random() * 20)
+    , minor = Math.floor(Math.random() * 20)
+    , patch = Math.floor(Math.random() * 20);
+
   // do VERSION <semver>\r\n
-  done(undefined, 'VERSION 0.0.0\r\n');
+  done(undefined, 'VERSION '+ major +'.'+ minor +'.'+ patch +'\r\n');
 };
 
 Fuzzer.responders.INCR = function fabricate(config, done) {
