@@ -210,8 +210,8 @@ setTimeout(function () {
 
 Fuzzer.responders.VALUE = function fabricate(config, done){
   var cas = Math.floor(Math.random() * 20) % 2
-    , size = Math.floor(Math.random() * this.config.get('max value size'))
-    , keysize = Math.floor(Math.random() * this.config.get('max key size'))
+    , size = Math.floor(Math.random() * config.get('max value size'))
+    , keysize = Math.floor(Math.random() * config.get('max key size'))
     , set = Math.floor(Math.random() * 5)
     , res = ''
     , response
@@ -219,7 +219,7 @@ Fuzzer.responders.VALUE = function fabricate(config, done){
     , key;
 
   // Did we need to generate a cas value?
-  if (cas) cas = Math.floor(Math.random() * this.config.get('responses'));
+  if (cas) cas = Math.floor(Math.random() * config.get('responses'));
   if (!set) set = 1;
 
   if (values.lenth >= config.get('unique values')) {

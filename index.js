@@ -18,6 +18,7 @@ function Parser(options) {
   // Stream interface related properties
   this.readable = 'readable' in options ? options.readable : true;
   this.writable = 'writable' in options ? options.writable : true;
+  this.destroyed = false;
 
   // Parser related properties
   this.queue = '';    // This is where the server responses are parsed from
@@ -223,17 +224,46 @@ Parser.prototype.parse = function parse() {
   this.queue = data.slice(i);
 };
 
+/**
+ * End the stream.
+ *
+ * @param {String} data
+ * @api private
+ */
 Parser.prototype.end = function end(data) {
   if (data) {
     this.queue += data;
     this.parse();
+  } else {
+    this.destroy();
   }
 
   this.writable = false;
+
+  // the Parser#destroy emits a `close` event in the nextTick, so we can
+  // safely call that before we emit `close` so end event comes before close as
+  // required (and done by other Node.js streams)
+  this.emit('end');
 };
 
-Parser.prototype.destroy = function destroy() {
-  this.writable = false;
+/**
+ * Completely murder the stream and clean up all references.
+ *
+ * @param {Error} exception
+ * @api private
+ */
+Parser.prototype.destroy = Parser.prototype.destroySoon = function destroy(exception) {
+  if (this.destroyed) return;
+
+  this.queue = '';
+  this.destroyed = true;
+
+  var self = this;
+  process.nextTick(function closing () {
+    if (exception) self.emit('error', exception);
+
+    self.emit('close', !!exception);
+  });
 };
 
 /**
