@@ -1,6 +1,8 @@
 'use strict';
 
-var Server = require('net').Server;
+var Server = require('net').Server
+  , g = require('garbage')
+  , fs = require('fs');
 
 /**
  * Memcached server response fuzzer.
@@ -205,7 +207,7 @@ Fuzzer.responders.STAT = function fabricate(config, done){
 var values = [];
 setTimeout(function () {
   // Parser hell, all values, separated by new lines
-  values.push(Object.key(Fuzzer.responders).join('\r\n'));
+  values.push(Object.keys(Fuzzer.responders).join('\r\n'));
 }, 0);
 
 Fuzzer.responders.VALUE = function fabricate(config, done){
@@ -222,16 +224,18 @@ Fuzzer.responders.VALUE = function fabricate(config, done){
   if (cas) cas = Math.floor(Math.random() * config.get('responses'));
   if (!set) set = 1;
 
+  // generate a custom key
+  key = (g.string() + g.string() + g.string()).replace(/\s/g, '').slice(0, keysize);
+
   if (values.lenth >= config.get('unique values')) {
     while (set--) {
       response = values[Math.floor(Math.random() * values.length)];
       size = Buffer.byteLength(response);
 
       // @TODO slice off the key from the content
-      res += 'VALUE <key> 0 '+ size + (cas ? ' '+ cas : '')
+      res += 'VALUE '+ key +' 0 '+ size + (cas ? ' '+ cas : '')
         + '\r\n'
-        + response
-        + '\r\n';
+        + response +'\r\n';
     }
 
     res += 'END\r\n';
@@ -240,8 +244,38 @@ Fuzzer.responders.VALUE = function fabricate(config, done){
 
   // do value <key> <flags> <bytes> [optional cas]\r\n data\r\nEND\r\n
   // should also send multipe value's
+  response = new Buffer(size);
+  fs.open('/dev/urandom', 'r', function (err, fd) {
+    if (err) {
+      fs.closeSync(fd);
+      return done(err);
+    }
 
-  done(undefined, 'VALUE key 0 1\r\na\r\nEND\r\n');
+    fs.read(fd, response, 0, size, 0, function reading(err) {
+      if (err) {
+        fs.closeSync(fd);
+        return done(err);
+      }
+
+      length = config.get('max value size') - response.length;
+      response = response.toString('utf-8');
+
+      // trololol, add memcached ASCII commands, to ensure that values are parsed
+      // correctly
+      if (length) {
+        response += Object.keys(Fuzzer.responders).join('\r\n').slice(0, length);
+      }
+
+      size = Buffer.byteLength(response);
+      values.push(response);
+      done(
+          undefined
+        , 'VALUE '+ key +' 0 '+ size + (cas ? ' '+ cas: '')
+        + '\r\n'
+        + response +'\r\nEND\r\n'
+      );
+    });
+  });
 };
 
 Fuzzer.responders.VERSION = function fabricate(config, done){
