@@ -61,6 +61,8 @@ Parser.responses = Object.create(null);
  * don't have to worry about receiving a half UTF-8 characture.
  *
  * @TODO implement backoff for when the queue is to full of data
+ * @TODO return false when we queued to much
+ * @TODO emit `drain` when we drained our queue
  *
  * @param {String} data
  * @returns {Boolean} successful write
@@ -73,10 +75,11 @@ Parser.prototype.write = function write(data) {
   // response, this saves a couple parse calls for large values that stream in
   // their values
   if (!(length < expected || Buffer.byteLength(this.queue) < length)) {
+    this.expected = 0;
     this.parse();
   }
 
-  return this.writable;
+  return true;
 };
 
 /**
@@ -86,20 +89,35 @@ Parser.prototype.write = function write(data) {
  */
 Parser.prototype.parse = function parse() {
   var data = this.queue
-    , length = data.length
+    , length = Buffer.byteLength(data)
     , i = 0
-    , msg
-    , pos;
+    , rn      // found a \r\n
+    , msg     // stores the response
+    , pos     // stores the current position
+    , err;    // stores the potential error messages
 
   for (; i < length; i++) {
     pos = data.charCodeAt(i);
+    rn = data.indexOf('\r\n', i);
+
+    // queue more data if we don't have the
+    // @TODO re-use the rn variable for slicing and dicing the data
+    if (!~rn) {
+      this.expecting = (length - i) + 2;
+      break;
+    }
+
+    console.log('found starting char:', pos, i, data[i], data.slice(i, 10));
 
     // @TODO Order this in order of importance
     // @TODO Check if we actually have all data, by checking for the \r\n
     if (pos === 67) {
       // CLIENT_ERROR
       msg = data.slice(i + 13, data.indexOf('\r\n', i + 12));
-      this.emit('error', new Error(msg));
+
+      err = new Error(msg);
+      err.code = 'CLIENT_ERROR';
+      this.emit('error', err);
 
       // message length + command + \r\n
       i += (msg.length + 15);
@@ -113,6 +131,7 @@ Parser.prototype.parse = function parse() {
       if (pos === 78) {
         // END
         this.emit('response', 'END');
+        pos = i;
         i += 5;
       } else if (pos === 88) {
         // EXISTS
@@ -120,7 +139,9 @@ Parser.prototype.parse = function parse() {
         i += 8;
       } else {
         // ERROR
-        this.emit('error', new Error('Command not known by server'));
+        err = new Error('Command not known by server');
+        err.code = 'ERROR';
+        this.emit('error', err);
         i += 7;
       }
     } else if (pos === 78) {
@@ -145,7 +166,10 @@ Parser.prototype.parse = function parse() {
       if (pos === 82) {
         // SERVER_ERROR (12)
         msg = data.slice(i + 13, data.indexOf('\r\n', i + 13));
-        this.emit('error', new Error(msg));
+
+        err = new Error(msg);
+        err.code = 'SERVER_ERROR';
+        this.emit('error', err);
 
         // message length + command + \r\n
         i += (msg.length + 15);
@@ -190,19 +214,26 @@ Parser.prototype.parse = function parse() {
         // Now that we know how much bytes we should expect to have all the
         // content or if we need to wait and buffer moar
         if (+bytes >= length - i) {
-          i = start;
+          i = start; // reset to start to start so the buffer gets cleaned up
+          this.expecting = +bytes;
           break;
         }
 
-        // determin if we have an optional cas
-        // @TODO
+        // @TODO determin if we have an optional cas
+        i = data.indexOf('\r\n', i) + 2;
+        //console.log('bytes:', bytes, 'flags:', flags, 'key:', key);
+        this.emit('response', 'VALUE', data.slice(i, i + bytes), cas);
+
+        // + value length & closing \r\n
+        i += bytes + 2;
       } else {
         // VERSION
         msg = data.slice(i + 8, data.indexOf('\r\n', i + 8));
         this.emit('response', 'VERSION', msg);
 
         // message length + command + \r\n
-        i += (msg.length + 10);
+        pos = i;
+        i += (msg.length + 9);
       }
     } else if (pos >= 48 && pos <= 57) {
       // numberic response, INC/DEC/ STAT value
@@ -216,12 +247,15 @@ Parser.prototype.parse = function parse() {
       }
     } else {
       // UNKOWN RESPONSE
-      this.emit('error', new Error('Unknown response'));
+      err = new Error('Unknown response');
+      err.data = data.slice(i);
+      this.emit('error', err);
     }
   }
 
   // Removed a chunk of parsed data.
   this.queue = data.slice(i);
+  console.log('CLEANED QUEUEU: ', this.queue.slice(0, 10), this.queue.length);
 };
 
 /**
