@@ -39,7 +39,7 @@ function Fuzzer(options) {
   // Fuzzer configuration.
   //
   this.config.set('interval', 10);              // each <x> ms send a new response
-  this.config.set('respones', 25000);           // the amount of responses to send
+  this.config.set('responses', 1000);           // the amount of responses to send
   this.config.set('unique values', 25);         // unique VALUE responses (stored in mem)
   this.config.set('auto close', true);          // automatically close the connection
   this.config.set('write log', true);           // should we write a log send data
@@ -84,33 +84,61 @@ Fuzzer.prototype.__proto__ = Server.prototype;
  * @api private
  */
 Fuzzer.prototype.connector = function connector(socket) {
-  var interations = 0
-    , interval;
+  var responses = this.config.get('responses')
+    , interval = this.config.get('interval')
+    , iterations = 0
+    , self = this
+    , start;
 
-  interval = setInterval(function write() {
-    if (++interations >= this.config.get('responses')) {
-      if (this.config.get('auto close')) socket.end();
+  console.log(
+      'received a new connection, sending %d responses'
+    , this.config.get('responses')
+  );
+
+    if (++iterations >= this.config.get('responses')) {
+      if (this.config.get('auto close')) {
+      }
 
       return clearInterval(interval);
     }
 
-    this.random(socket);
-  }.bind(this), this.config.get('interval'));
+  start = Date.now();
+  (function loophole () {
+    self.random(socket, function callback(err) {
+      if (err) return socket.end();
 
-  //
+      process.stdout.write('writing response: '+ iterations +'\r');
+      if (++iterations >= responses) {
+        if (self.config.get('auto close')) {
+          console.log();
+          socket.end();
+          console.log('auto closed the connection');
+        }
+
+        return;
+      }
+
+      var duration = Date.now() - start;
+      if (duration < interval) return setTimeout(loophole, interval - duration);
+
+      loophole();
+    });
+  })();
+
   // Make sure we clear the interval once
   socket.once('end', function theend() {
-    clearInterval(interval);
-  });
+    iterations = this.config.get('responses');
+  }.bind(this));
 };
 
 /**
  * Write a fuzzy line to the given socket connection.
  *
  * @param {net.Server} socket
+ * @param {Function} callback
  * @api private
  */
-Fuzzer.prototype.random = function random(socket) {
+Fuzzer.prototype.random = function random(socket, callback) {
   var reply = this.responses[ Math.floor(Math.random() * this.responses.length) ]
     , self = this;
 
@@ -125,7 +153,7 @@ Fuzzer.prototype.random = function random(socket) {
     // if you wish to integrate the tool in to your test suite and confirm that
     // every line it receives is parsed correctly.
     self.emit('fuzzer', reply, line);
-    socket.write(line);
+    socket.write(line, callback);
   });
 };
 

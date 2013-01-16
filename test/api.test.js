@@ -41,27 +41,31 @@ describe('memcached-stream', function () {
       it('pipes to a net.Connection', function (done) {
         var server = fuzzy.createServer({ responses: 100 })
           , memcached = new Parser()
-          , port = portnumbers;
+          , port = portnumbers
+          , responses = 0;
 
         this.timeout(20E3);
 
-        memcached.on('end', function () {
-          server.close();
-          done();
-        });
-
         memcached.on('error', function () {
-
+          ++responses;
         });
 
         memcached.on('response', function () {
-
+          ++responses;
         });
 
         server.listen(port, function (err) {
           if (err) return done(err);
 
-          net.connect(port).pipe(memcached);
+          var connection = net.connect(port);
+          connection.pipe(memcached);
+
+          connection.once('close', function () {
+            server.close();
+
+            expect(responses).to.equal(100);
+            done();
+          });
         });
       });
     });
