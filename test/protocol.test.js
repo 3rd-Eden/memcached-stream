@@ -21,32 +21,33 @@ describe('memcached-stream', function () {
           expect(err.message).to.include('Syntax error');
           expect(err.message).to.include('cas <key>');
 
-          done();
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
         });
 
         memcached.write(data);
       });
-    });
 
-    describe('SERVER_ERROR', function () {
-      var data = 'SERVER_ERROR out of memory storing object with memcached\r\n';
-
-      it('emits an `error` event when encountered', function (done) {
+      it('correctly cleans the queue', function (done) {
         var memcached = new Parser();
 
         memcached.on('error', function (err) {
-          expect(err).to.be.an.instanceOf(Error);
-          expect(err.message).to.include('out of memory');
-          expect(err.message).to.include('storing object');
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
 
-          done();
+            done();
+          });
         });
 
-        memcached.write(data);
+        memcached.write(data+ 'BANANANANA');
       });
     });
 
-    describe('DELETE', function () {
+    describe('DELETED', function () {
       var data = 'DELETED\r\n';
 
       it('emits an `response` event when encountered', function (done) {
@@ -54,10 +55,29 @@ describe('memcached-stream', function () {
 
         memcached.on('response', function (command) {
           expect(command).to.equal('DELETED');
-          done();
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+            done();
+          });
         });
 
         memcached.write(data);
+      });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function () {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
       });
     });
 
@@ -69,10 +89,30 @@ describe('memcached-stream', function () {
 
         memcached.on('response', function (command) {
           expect(command).to.equal('END');
-          done();
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
         });
 
         memcached.write(data);
+      });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
       });
     });
 
@@ -87,10 +127,29 @@ describe('memcached-stream', function () {
           expect(err.message).to.include('Command not known');
           expect(err.message).to.include('by server');
 
-          done();
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
         });
 
         memcached.write(data);
+      });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('error', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
       });
     });
 
@@ -102,10 +161,30 @@ describe('memcached-stream', function () {
 
         memcached.on('response', function (command) {
           expect(command).to.equal('EXISTS');
-          done();
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
         });
 
         memcached.write(data);
+      });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
       });
     });
 
@@ -117,10 +196,30 @@ describe('memcached-stream', function () {
 
         memcached.on('response', function (command) {
           expect(command).to.equal('NOT_FOUND');
-          done();
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
         });
 
         memcached.write(data);
+      });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
       });
     });
 
@@ -132,10 +231,30 @@ describe('memcached-stream', function () {
 
         memcached.on('response', function (command) {
           expect(command).to.equal('NOT_STORED');
-          done();
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
         });
 
         memcached.write(data);
+      });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
       });
     });
 
@@ -147,11 +266,73 @@ describe('memcached-stream', function () {
 
         memcached.on('response', function (command) {
           expect(command).to.equal('OK');
-          done();
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
         });
 
         memcached.write(data);
       });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
+      });
+    });
+
+    describe('SERVER_ERROR', function () {
+      var data = 'SERVER_ERROR out of memory storing object with memcached\r\n';
+
+      it('emits an `error` event when encountered', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('error', function (err) {
+          expect(err).to.be.an.instanceOf(Error);
+          expect(err.message).to.include('out of memory');
+          expect(err.message).to.include('storing object');
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
+        });
+
+        memcached.write(data);
+      });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('error', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
+      });
+    });
+
+    describe('STAT', function () {
+      it('emits an `response` event when encountered');
+      it('correctly cleans the queue');
     });
 
     describe('STORED', function () {
@@ -162,10 +343,30 @@ describe('memcached-stream', function () {
 
         memcached.on('response', function (command) {
           expect(command).to.equal('STORED');
-          done();
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
         });
 
         memcached.write(data);
+      });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
       });
     });
 
@@ -177,11 +378,37 @@ describe('memcached-stream', function () {
 
         memcached.on('response', function (command) {
           expect(command).to.equal('TOUCHED');
-          done();
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
         });
 
         memcached.write(data);
       });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
+      });
+    });
+
+    describe('VALUE', function () {
+      it('emits an `response` event when encountered');
+      it('optionally parsers the cas value');
+      it('correctly cleans the queue');
     });
 
     describe('VERSION', function () {
@@ -193,10 +420,66 @@ describe('memcached-stream', function () {
         memcached.on('response', function (command, data) {
           expect(command).to.equal('VERSION');
           expect(data).to.equal('1.2.2');
-          done();
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
         });
 
         memcached.write(data);
+      });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
+      });
+    });
+
+    describe('INCR/DECR', function () {
+      var data = '131447\r\n';
+
+      it('emits an `response` event when encountered', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (command, data) {
+          expect(command).to.equal('INCR/DECR');
+          expect(data).to.equal('131447');
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
+        });
+
+        memcached.write(data);
+      });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
       });
     });
   });
