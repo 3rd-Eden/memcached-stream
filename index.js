@@ -89,7 +89,7 @@ Parser.prototype.write = function write(data) {
  */
 Parser.prototype.parse = function parse() {
   var data = this.queue
-    , length = Buffer.byteLength(data)
+    , length = data.length
     , i = 0
     , rn      // found a \r\n
     , msg     // stores the response

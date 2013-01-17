@@ -107,7 +107,7 @@ Fuzzer.prototype.connector = function connector(socket) {
     self.random(socket, function callback(err) {
       if (err) return socket.end();
 
-      process.stdout.write('writing response: '+ iterations +'\r');
+      // process.stdout.write('writing response: '+ iterations +'\r');
       if (++iterations >= responses) {
         if (self.config.get('auto close')) {
           console.log();

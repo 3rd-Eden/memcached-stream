@@ -4,10 +4,9 @@ var parser = require('../index.js').createStream()
   , fuzzer = require('./fuzzer').createServer({
         'responses': 100000
       , 'max value size': 256
-      //, 'replies': [
-      //      //'VERSION'
-      //      'END'
-      //  ]
+      , 'replies': [
+            'CLIENT_ERROR'
+        ]
     });
 
 //
@@ -29,6 +28,7 @@ parser.on('response', function (code, value) {
   var expecting = send.shift();
 
   responses++;
+  process.stdout.write('Parsed response: '+ responses +'\r');
 
   if (
       !~code.indexOf(expecting.code)
@@ -50,6 +50,7 @@ parser.on('error', function (err) {
     , code = err.code;
 
   responses++;
+  process.stdout.write('Parsed response: '+ responses +'\r');
 
   if (code !== expecting.code) {
     console.log('Failed to parse', expecting, 'got error '+ code);
@@ -68,11 +69,5 @@ parser.on('error', function (err) {
 });
 
 fuzzer.listen(11211, function () {
-  console.log('starting on port ', 11211);
-  var conn = require('net').connect(11211);
-
-  conn.on('end', function () {
-    console.log('closed', responses);
-  });
-  conn.pipe(parser);
+  require('net').connect(11211).pipe(parser);
 });
