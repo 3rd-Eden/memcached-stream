@@ -4,10 +4,10 @@ var parser = require('../index.js').createStream()
   , fuzzer = require('./fuzzer').createServer({
         'responses': 100000
       , 'max value size': 256
-      , 'replies': [
-            //'VERSION'
-            'END'
-        ]
+      //, 'replies': [
+      //      //'VERSION'
+      //      'END'
+      //  ]
     });
 
 //
@@ -16,7 +16,6 @@ var parser = require('../index.js').createStream()
 var send = [];
 fuzzer.on('fuzzer', function (code, line) {
   // minor
-  if (code === 'STAT') code = 'STORED';
   send.push({ code: code, line: line });
 });
 

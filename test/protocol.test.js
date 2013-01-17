@@ -405,10 +405,45 @@ describe('memcached-stream', function () {
       });
     });
 
-    describe('VALUE', function () {
-      it('emits an `response` event when encountered');
+    describe.only('VALUE', function () {
+      var data = 'VALUE füübar 1 60 9\r\nпривет мир, Memcached и nodejs для победы\r\n';
+
+      it('emits an `response` event when encountered', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (command, value, flags, cas, key) {
+          expect(command).to.equal('VALUE');
+          expect(value).to.equal('привет мир, Memcached и nodejs для победы');
+          expect(flags).to.equal('1');
+          //expect(cas).to.equal('9')
+          expect(key).to.equal('füübar');
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
+        });
+
+        memcached.write(data);
+      });
+
       it('optionally parsers the cas value');
-      it('correctly cleans the queue');
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
+      });
     });
 
     describe('VERSION', function () {

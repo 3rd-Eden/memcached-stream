@@ -183,6 +183,11 @@ Fuzzer.responders.CLIENT_ERROR = function fabricate(config, done) {
     , 'invalid numeric delta argument'
     , 'slab reassignment disabled'
     , 'usage: stats detail on|off|dump'
+    , (g.string() + g.string() + g.string()).replace('\r\n', '')
+    , (g.string() + g.string() + g.string()).replace('\r\n', '')
+    , (g.string() + g.string() + g.string()).replace('\r\n', '')
+    , (g.string() + g.string() + g.string()).replace('\r\n', '')
+    , (g.string() + g.string() + g.string()).replace('\r\n', '')
   ];
 
   done(undefined, 'CLIENT_ERROR '+ errors[ Math.floor(Math.random() * errors.length) ] +'\r\n');
@@ -202,14 +207,70 @@ Fuzzer.responders.SERVER_ERROR = function fabricate(config, done){
     , 'out of memory writing stats'
     , 'out of memory'
     , 'output line too long'
+    , (g.string() + g.string() + g.string()).replace('\r\n', '')
+    , (g.string() + g.string() + g.string()).replace('\r\n', '')
+    , (g.string() + g.string() + g.string()).replace('\r\n', '')
+    , (g.string() + g.string() + g.string()).replace('\r\n', '')
+    , (g.string() + g.string() + g.string()).replace('\r\n', '')
   ];
 
   done(undefined, 'SERVER_ERROR '+ errors[ Math.floor(Math.random() * errors.length) ] +'\r\n');
 };
 
 Fuzzer.responders.STAT = function fabricate(config, done){
+  var STAT = [
+      'STAT pid '+ g.size()
+    , 'STAT uptime '+ g.size()
+    , 'STAT time '+ Date.now()
+    , 'STAT version '+ g.size()+'.'+ g.size() +'.'+ g.size()
+    , 'STAT libevent 2.0.17-stable'
+    , 'STAT pointer_size '+ g.size()
+    , 'STAT rusage_user '+ Math.tan((Math.random() - 0.5) * Math.PI)
+    , 'STAT rusage_system '+ Math.tan((Math.random() - 0.5) * Math.PI)
+    , 'STAT curr_connections '+ g.size()
+    , 'STAT total_connections '+ g.size()
+    , 'STAT connection_structures '+ g.size()
+    , 'STAT reserved_fds '+ g.size()
+    , 'STAT cmd_get '+ g.size()
+    , 'STAT cmd_set '+ g.size()
+    , 'STAT cmd_flush '+ g.size()
+    , 'STAT cmd_touch '+ g.size()
+    , 'STAT get_hits '+ g.size()
+    , 'STAT get_misses '+ g.size()
+    , 'STAT delete_misses '+ g.size()
+    , 'STAT delete_hits '+ g.size()
+    , 'STAT incr_misses '+ g.size()
+    , 'STAT incr_hits '+ g.size()
+    , 'STAT decr_misses '+ g.size()
+    , 'STAT decr_hits '+ g.size()
+    , 'STAT cas_misses '+ g.size()
+    , 'STAT cas_hits '+ g.size()
+    , 'STAT cas_badval '+ g.size()
+    , 'STAT touch_hits '+ g.size()
+    , 'STAT touch_misses '+ g.size()
+    , 'STAT auth_cmds '+ g.size()
+    , 'STAT auth_errors '+ g.size()
+    , 'STAT bytes_read '+ g.size()
+    , 'STAT bytes_written '+ g.size()
+    , 'STAT limit_maxbytes '+ g.size()
+    , 'STAT accepting_conns '+ g.size()
+    , 'STAT listen_disabled_num '+ g.size()
+    , 'STAT threads '+ g.size()
+    , 'STAT conn_yields '+ g.size()
+    , 'STAT hash_power_level '+ g.size()
+    , 'STAT hash_bytes '+ g.size()
+    , 'STAT hash_is_expanding '+ g.size()
+    , 'STAT expired_unfetched '+ g.size()
+    , 'STAT evicted_unfetched '+ g.size()
+    , 'STAT bytes '+ g.size()
+    , 'STAT curr_items '+ g.size()
+    , 'STAT total_items '+ g.size()
+    , 'STAT evictions '+ g.size()
+    , 'STAT reclaimed '+ g.size()
+  ].join('\r\n');
+
   // generate a bunch of STAT <key> <value> calls
-  done(undefined, 'STORED\r\n');
+  done(undefined, STAT +'\r\nEND\r\n');
 };
 
 [

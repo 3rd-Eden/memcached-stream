@@ -25,6 +25,8 @@ var reuse = new Buffer(1048576)
   var x = Buffer.concat([base, base]).toString('utf8');
 }).add('StringDecoder', function test2() {
   var x = decoder.write(base) + decoder.write(base);
+}).add('StringDecoder to buffer', function test2() {
+  var x = new Buffer(decoder.write(base) + decoder.write(base))
 }).add('reuse & Buffer#copy', function test2() {
   base.copy(reuse, 0);
   base.copy(reuse, base.length);

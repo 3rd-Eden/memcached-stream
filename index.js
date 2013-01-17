@@ -191,6 +191,7 @@ Parser.prototype.parse = function parse() {
       if (pos === 65) {
         // VALUE
         var start = i
+          , value
           , bytes
           , flags
           , key
@@ -210,23 +211,34 @@ Parser.prototype.parse = function parse() {
 
         // bytes
         i += flags.length + 1;
-        bytes = data.slice(i, data.indexOf(' ', i));
+        bytes = +data.slice(i, data.indexOf(' ', i));
 
         // Now that we know how much bytes we should expect to have all the
         // content or if we need to wait and buffer moar
-        if (+bytes >= length - i) {
+        if (bytes >= length - i) {
           i = start; // reset to start to start so the buffer gets cleaned up
-          this.expecting = +bytes;
+          this.expecting = bytes;
           break;
         }
 
         // @TODO determin if we have an optional cas
         i = data.indexOf('\r\n', i) + 2;
+
+        // because we are working with binary data here, we need to alocate
+        // a new buffer, so we can properly slice the data from the string as
+        // javacript doesn't support String#slice that is binary/multibyte aware
+        // @TODO benchmark this against a pure buffer solution
+        value = new Buffer(bytes);
+        data = data.slice(i);
+        i = 0;
+        value.write(data, 0, bytes);
+        value = value.toString();
+
         //console.log('bytes:', bytes, 'flags:', flags, 'key:', key);
-        this.emit('response', 'VALUE', data.slice(i, i + bytes), cas);
+        this.emit('response', 'VALUE', value, flags, cas, key);
 
         // + value length & closing \r\n
-        i += bytes + 2;
+        i += value.length + 1;
       } else {
         // VERSION
         msg = data.slice(i + 8, data.indexOf('\r\n', i + 8));
