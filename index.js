@@ -107,7 +107,7 @@ Parser.prototype.parse = function parse() {
       break;
     }
 
-    console.log('found starting char:', pos, i, data[i], data.slice(i, 10));
+    //console.log('found starting char:', pos, i, data[i], data.slice(i, 10));
 
     // @TODO Order this in order of importance
     // @TODO Check if we actually have all data, by checking for the \r\n
@@ -120,11 +120,11 @@ Parser.prototype.parse = function parse() {
       this.emit('error', err);
 
       // message length + command + \r\n
-      i += (msg.length + 15);
+      i += (msg.length + 14);
     } else if (pos === 68) {
       // DELETED
       this.emit('response', 'DELETED');
-      i += 9;
+      i += 8;
     } else if (pos === 69) {
       // END, ERROR, EXISTS
       pos = data.charCodeAt(i + 1);
@@ -132,17 +132,17 @@ Parser.prototype.parse = function parse() {
         // END
         this.emit('response', 'END');
         pos = i;
-        i += 5;
+        i += 4;
       } else if (pos === 88) {
         // EXISTS
         this.emit('response', 'EXISTS');
-        i += 8;
+        i += 7;
       } else {
         // ERROR
         err = new Error('Command not known by server');
         err.code = 'ERROR';
         this.emit('error', err);
-        i += 7;
+        i += 6;
       }
     } else if (pos === 78) {
       // NOT_STORED, NOT_FOUND
@@ -150,16 +150,16 @@ Parser.prototype.parse = function parse() {
       if (pos === 70) {
         // NOT_FOUND
         this.emit('response', 'NOT_FOUND');
-        i += 11;
+        i += 10;
       } else {
         // NOT_STORED
         this.emit('response', 'NOT_STORED');
-        i += 12;
+        i += 11;
       }
     } else if (pos === 79) {
       // OK
       this.emit('response', 'OK');
-      i += 4;
+      i += 3;
     } else if (pos === 83) {
       // SERVER_ERROR, STAT, STORED
       pos = data.charCodeAt(i + 2);
@@ -172,18 +172,19 @@ Parser.prototype.parse = function parse() {
         this.emit('error', err);
 
         // message length + command + \r\n
-        i += (msg.length + 15);
+        i += (msg.length + 14);
       } else if (pos === 79) {
         // STORED
         this.emit('response', 'STORED');
-        i += 8;
+        i += 7;
       } else {
         // STAT
+        // @TODO
       }
     } else if (pos === 84) {
       // TOUCHED
       this.emit('response', 'TOUCHED');
-      i += 9;
+      i += 8;
     } else if (pos === 86) {
       // VALUE, VERSION
       pos = data.charCodeAt(i + 1);
@@ -241,7 +242,7 @@ Parser.prototype.parse = function parse() {
 
       if (+msg) {
         this.emit('response', 'INCR/DECR', msg);
-        i += (msg.length + 2);
+        i += (msg.length + 1);
       } else {
         // @TODO handle size response
       }
@@ -255,7 +256,7 @@ Parser.prototype.parse = function parse() {
 
   // Removed a chunk of parsed data.
   this.queue = data.slice(i);
-  console.log('CLEANED QUEUEU: ', this.queue.slice(0, 10), this.queue.length);
+  //console.log('CLEANED QUEUEU: ', this.queue.slice(0, 10), this.queue.length);
 };
 
 /**
