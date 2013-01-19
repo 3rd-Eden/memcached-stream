@@ -101,7 +101,6 @@ Parser.prototype.parse = function parse() {
     rn = data.indexOf('\r\n', i);
 
     // queue more data if we don't have the
-    // @TODO re-use the rn variable for slicing and dicing the data
     if (!~rn) {
       // @TODO this might break because we need to queue bytes not ASCII length
       this.expecting = (length - i) + 2;
