@@ -103,17 +103,16 @@ Parser.prototype.parse = function parse() {
     // queue more data if we don't have the
     // @TODO re-use the rn variable for slicing and dicing the data
     if (!~rn) {
+      // @TODO this might break because we need to queue bytes not ASCII length
       this.expecting = (length - i) + 2;
       break;
     }
-
-    //console.log('found starting char:', pos, i, data[i], data.slice(i, 10));
 
     // @TODO Order this in order of importance
     // @TODO Check if we actually have all data, by checking for the \r\n
     if (pos === 67) {
       // CLIENT_ERROR
-      msg = data.slice(i + 13, data.indexOf('\r\n', i + 12));
+      msg = data.slice(i + 13, rn);
 
       err = new Error(msg);
       err.code = 'CLIENT_ERROR';
@@ -165,7 +164,7 @@ Parser.prototype.parse = function parse() {
       pos = data.charCodeAt(i + 2);
       if (pos === 82) {
         // SERVER_ERROR (12)
-        msg = data.slice(i + 13, data.indexOf('\r\n', i + 13));
+        msg = data.slice(i + 13, rn);
 
         err = new Error(msg);
         err.code = 'SERVER_ERROR';
@@ -191,6 +190,7 @@ Parser.prototype.parse = function parse() {
       if (pos === 65) {
         // VALUE
         var start = i
+          , hascas
           , value
           , bytes
           , flags
@@ -201,28 +201,43 @@ Parser.prototype.parse = function parse() {
         // @TODO test inline var statement vs outside loop var statement
         // @TODO test if saving the start is a good idea or just
 
-        // key name
         i += 6;
+
+        // key name
         key = data.slice(i, data.indexOf(' ', i));
+        i += key.length + 1;
 
         // flags
-        i += key.length + 1;
         flags = data.slice(i, data.indexOf(' ', i));
-
-        // bytes
         i += flags.length + 1;
-        bytes = +data.slice(i, data.indexOf(' ', i));
+
+        // check if we have a space in this batch so we know if there's a CAS
+        // value and that the bytes should be split on the space or on a \r\n
+        pos = data.indexOf(' ', i);
+        hascas = ~pos && pos < rn;
+
+        bytes = data.slice(i
+          , hascas
+            ? pos
+            : rn
+        );
+        i += bytes.length + 1;
 
         // Now that we know how much bytes we should expect to have all the
         // content or if we need to wait and buffer moar
-        if (bytes >= length - i) {
-          i = start; // reset to start to start so the buffer gets cleaned up
-          this.expecting = bytes;
-          break;
-        }
+        bytes = +bytes;
+        //if (bytes >= length) {
+        //  i = start; // reset to start to start so the buffer gets cleaned up
+        //  this.expecting = bytes;
+        //  break;
+        //}
 
-        // @TODO determin if we have an optional cas
-        i = data.indexOf('\r\n', i) + 2;
+        if (hascas) {
+          cas = data.slice(i, rn);
+          i+= cas.length + 2;
+        } else {
+          i += 1;
+        }
 
         // because we are working with binary data here, we need to alocate
         // a new buffer, so we can properly slice the data from the string as
@@ -234,14 +249,13 @@ Parser.prototype.parse = function parse() {
         value.write(data, 0, bytes);
         value = value.toString();
 
-        //console.log('bytes:', bytes, 'flags:', flags, 'key:', key);
         this.emit('response', 'VALUE', value, flags, cas, key);
 
         // + value length & closing \r\n
         i += value.length + 1;
       } else {
         // VERSION
-        msg = data.slice(i + 8, data.indexOf('\r\n', i + 8));
+        msg = data.slice(i + 8, rn);
         this.emit('response', 'VERSION', msg);
 
         // message length + command + \r\n
@@ -250,7 +264,7 @@ Parser.prototype.parse = function parse() {
       }
     } else if (pos >= 48 && pos <= 57) {
       // numberic response, INC/DEC/ STAT value
-      msg = data.slice(i, data.indexOf('\r\n', i));
+      msg = data.slice(i, rn);
 
       if (+msg) {
         this.emit('response', 'INCR/DECR', msg);
@@ -268,7 +282,6 @@ Parser.prototype.parse = function parse() {
 
   // Removed a chunk of parsed data.
   this.queue = data.slice(i);
-  //console.log('CLEANED QUEUEU: ', this.queue.slice(0, 10), this.queue.length);
 };
 
 /**

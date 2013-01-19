@@ -405,7 +405,7 @@ describe('memcached-stream', function () {
       });
     });
 
-    describe.only('VALUE', function () {
+    describe('VALUE', function () {
       var data = 'VALUE füübar 1 60 9\r\nпривет мир, Memcached и nodejs для победы\r\n';
 
       it('emits an `response` event when encountered', function (done) {
@@ -415,7 +415,7 @@ describe('memcached-stream', function () {
           expect(command).to.equal('VALUE');
           expect(value).to.equal('привет мир, Memcached и nodejs для победы');
           expect(flags).to.equal('1');
-          //expect(cas).to.equal('9')
+          expect(cas).to.equal('9');
           expect(key).to.equal('füübar');
 
           // should clear the cache
@@ -429,7 +429,26 @@ describe('memcached-stream', function () {
         memcached.write(data);
       });
 
-      it('optionally parsers the cas value');
+      it('optionally parsers the cas value', function (done) {
+        var data = 'VALUE füübar 123 60\r\nпривет мир, Memcached и nodejs для победы\r\n'
+          , memcached = new Parser();
+
+        memcached.on('response', function (command, value, flags, cas, key) {
+          expect(command).to.equal('VALUE');
+          expect(value).to.equal('привет мир, Memcached и nodejs для победы');
+          expect(flags).to.equal('123');
+          expect(key).to.equal('füübar');
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
+        });
+
+        memcached.write(data);
+      });
 
       it('correctly cleans the queue', function (done) {
         var memcached = new Parser();
