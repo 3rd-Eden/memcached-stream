@@ -19,6 +19,7 @@ var parser = require('../index.js').createStream()
           , 'TOUCHED'
           , 'VALUE'
           , 'VERSION'
+          , 'INCR'
         ]
     });
 
