@@ -23,7 +23,7 @@ var Stream = require('stream');
  */
 function Parser(options) {
   options = options || {};
-  // Assigning properties on `this` is faster then adding it to the prototype
+  // Assigning properties on `this` is faster then adding it to the prototype.
 
   // Stream interface related properties.
   this.readable = 'readable' in options ? options.readable : true;
@@ -49,24 +49,24 @@ Parser.prototype.__proto__ = Stream.prototype;
  */
 Parser.responses = Object.create(null);
 [
-    'CLIENT_ERROR'  // CLIENT_ERROR <error> \r\n    -- protocol failed
-  , 'DELETED'       // DELETED\r\n                  -- value deleted
-  , 'END'           // END\r\n                      -- done
-  , 'ERROR'         // ERROR\r\n                    -- command not known
-  , 'EXISTS'        // EXISTS\r\n                   -- item has been modified
-  , 'NOT_FOUND'     // NOT_FOUND\r\n                -- ok, but item not found
-  , 'NOT_STORED'    // NOT_STORED\r\n               -- ok, but not stored
-  , 'OK'            // OK\r\n                       -- ok
-  , 'SERVER_ERROR'  // SERVER_ERROR <error> \r\n    -- server fuckup
-  , 'STAT'          // STAT <name> <value>\r\n      -- server stats
-  , 'STORED'        // STORED\r\n                   -- saved response
-  , 'TOUCHED'       // TOUCHED\r\n                  -- that tickles
+    'CLIENT_ERROR'  // CLIENT_ERROR <error> \r\n    -- Protocol failed
+  , 'DELETED'       // DELETED\r\n                  -- Value deleted
+  , 'END'           // END\r\n                      -- Done
+  , 'ERROR'         // ERROR\r\n                    -- Command not known
+  , 'EXISTS'        // EXISTS\r\n                   -- Item has been modified
+  , 'NOT_FOUND'     // NOT_FOUND\r\n                -- OK, but item not found
+  , 'NOT_STORED'    // NOT_STORED\r\n               -- OK, but not stored
+  , 'OK'            // OK\r\n                       -- OK
+  , 'SERVER_ERROR'  // SERVER_ERROR <error> \r\n    -- Server fuckup
+  , 'STAT'          // STAT <name> <value>\r\n      -- Server stats
+  , 'STORED'        // STORED\r\n                   -- Saved response
+  , 'TOUCHED'       // TOUCHED\r\n                  -- That tickles
   , 'VALUE'         // VALUE <key> <flags> <bytes> [<cas unique>]\r\n -- ok
-  , 'VERSION'       // VERSION <version>\r\n        -- server version
+  , 'VERSION'       // VERSION <version>\r\n        -- Server version
 
-  // <number> <count>\r\n                           -- size stat response
-  // <number>\r\n                                   -- incr response
-  // ignoring SLAB reassignment, doesn't seem to be finished
+  // <number> <count>\r\n                           -- Size stat response
+  // <number>\r\n                                   -- Incr response
+  // Ignoring SLAB reassignment, doesn't seem to be finished.
 ].forEach(function commanding(command, i) {
   Parser.responses[command] = i;
 });
@@ -298,22 +298,23 @@ Parser.prototype.parse = function parse() {
         i += 6;
         bytesRemaining += 6;
 
-        // key name
+        // Key name
         key = data.slice(i, data.indexOf(' ', i));
         i += key.length + 1;
         bytesRemaining -= Buffer.byteLength(key) + 1; // Key can be Unicode
 
-        // flags
+        // Flags
         flags = data.slice(i, data.indexOf(' ', i));
         length = flags.length + 1;
         i += length;
         bytesRemaining -= length;
 
-        // check if we have a space in this batch so we know if there's a CAS
-        // value and that the bytes should be split on the space or on a \r\n
+        // Check if we have a space in this batch so we know if there's a CAS
+        // value and that the bytes should be split on the space or on a \r\n.
         charCode = data.indexOf(' ', i);
         hascas = ~charCode && charCode < rn;
 
+        // Bytes
         bytes = data.slice(i
           , hascas
             ? charCode
@@ -353,11 +354,18 @@ Parser.prototype.parse = function parse() {
         // @TODO benchmark this against a pure buffer solution.
         value = new Buffer(bytes);
 
-        // @TODO test if it really matters if we slice off the data first so we
-        // have smaller string to write to the buffer.
-        // data = data.slice(i);
-        // i = 0;
-        value.write(data, 0, bytes);
+        // We need to slice off the data so feed the correct string in to the
+        // Buffer
+        data = data.slice(i);
+        i = 0;
+
+        value.write(data.slice(i), 0, bytes);
+
+        // @TODO we might not want to override the Buffer with a string version
+        // as the flag can indicate that it's a Buffer instance. Also these
+        // decisions should be made by the client, not the parser.
+        // @TODO we might not even need to change it to a string, as we are only
+        // doing this atm so we can add the value's length to the cursor (i).
         value = value.toString();
 
         this.emit('response', 'VALUE', value, flags, cas, key);
@@ -369,7 +377,7 @@ Parser.prototype.parse = function parse() {
         // VERSION:
         //
         // The server version, usually semver formatted but it can also contain
-        // alpha chars such as beta, dev or pewpew
+        // alpha chars such as beta, dev or pewpew.
         msg = data.slice(i + 8, rn);
         this.emit('response', 'VERSION', msg);
 
@@ -426,7 +434,7 @@ Parser.prototype.end = function end(data) {
 
   // The Parser#destroy emits a `close` event in the nextTick, so we can
   // safely call that before we emit `close` so end event comes before close as
-  // required (and done by other Node.js streams)
+  // required (and done by other Node.js streams).
   this.emit('end');
 };
 
