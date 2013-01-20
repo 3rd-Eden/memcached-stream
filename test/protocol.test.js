@@ -16,7 +16,7 @@ describe('memcached-stream', function () {
       it('emits an `error` event when encountered', function (done) {
         var memcached = new Parser();
 
-        memcached.on('error', function (err) {
+        memcached.on('error:response', function (err) {
           expect(err).to.be.an.instanceOf(Error);
           expect(err.message).to.include('Syntax error');
           expect(err.message).to.include('cas <key>');
@@ -35,7 +35,7 @@ describe('memcached-stream', function () {
       it('correctly cleans the queue', function (done) {
         var memcached = new Parser();
 
-        memcached.on('error', function (err) {
+        memcached.on('error:response', function (err) {
           process.nextTick(function () {
             expect(memcached.queue).to.equal('BANANANANA');
 
@@ -122,7 +122,7 @@ describe('memcached-stream', function () {
       it('emits an `error` event when encountered', function (done) {
         var memcached = new Parser();
 
-        memcached.on('error', function (err) {
+        memcached.on('error:response', function (err) {
           expect(err).to.be.an.instanceOf(Error);
           expect(err.message).to.include('Command not known');
           expect(err.message).to.include('by server');
@@ -141,7 +141,7 @@ describe('memcached-stream', function () {
       it('correctly cleans the queue', function (done) {
         var memcached = new Parser();
 
-        memcached.on('error', function (err) {
+        memcached.on('error:response', function (err) {
           process.nextTick(function () {
             expect(memcached.queue).to.equal('BANANANANA');
 
@@ -299,7 +299,7 @@ describe('memcached-stream', function () {
       it('emits an `error` event when encountered', function (done) {
         var memcached = new Parser();
 
-        memcached.on('error', function (err) {
+        memcached.on('error:response', function (err) {
           expect(err).to.be.an.instanceOf(Error);
           expect(err.message).to.include('out of memory');
           expect(err.message).to.include('storing object');
@@ -318,7 +318,7 @@ describe('memcached-stream', function () {
       it('correctly cleans the queue', function (done) {
         var memcached = new Parser();
 
-        memcached.on('error', function (err) {
+        memcached.on('error:response', function (err) {
           process.nextTick(function () {
             expect(memcached.queue).to.equal('BANANANANA');
 
