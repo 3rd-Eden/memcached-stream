@@ -95,7 +95,6 @@ Parser.prototype.write = function write(data) {
     this.expected = 0;
     this.parse();
   }
-
   return true;
 };
 
@@ -137,7 +136,7 @@ Parser.prototype.parse = function parse() {
 
       err = new Error(msg);
       err.code = 'CLIENT_ERROR';
-      this.emit('error', err);
+      this.emit('error:response', err);
 
       // command length + message length + separators
       length = msg.length + 14;
@@ -183,7 +182,7 @@ Parser.prototype.parse = function parse() {
         // The command that was send by the client is not known by the server.
         err = new Error('Command not known by server');
         err.code = 'ERROR';
-        this.emit('error', err);
+        this.emit('error:response', err);
 
         i += 6;
         bytesRemaining -= 6;
@@ -238,7 +237,7 @@ Parser.prototype.parse = function parse() {
 
         err = new Error(msg);
         err.code = 'SERVER_ERROR';
-        this.emit('error', err);
+        this.emit('error:response', err);
 
         // command length + message length + separators
         length = msg.length + 14;
@@ -353,12 +352,6 @@ Parser.prototype.parse = function parse() {
         // JavaScript doesn't support String#slice that is binary/multi byte aware
         // @TODO benchmark this against a pure buffer solution.
         value = new Buffer(bytes);
-
-        // We need to slice off the data so feed the correct string in to the
-        // Buffer
-        data = data.slice(i);
-        i = 0;
-
         value.write(data.slice(i), 0, bytes);
 
         // @TODO we might not want to override the Buffer with a string version
@@ -408,6 +401,8 @@ Parser.prototype.parse = function parse() {
       err = new Error('Unknown response');
       err.CODE = 'EPARSERFUCKUPLULZ';
       err.data = data.slice(i);
+
+      // DIE
       this.destroy(err);
     }
   }
