@@ -6,10 +6,20 @@
 var Stream = require('stream');
 
 /**
- * Memcached ASCII protocol parser.
+ * Memcached ASCII protocol parser. Based on the protocol that is outlined at:
+ *
+ * https://github.com/memcached/memcached/blob/master/doc/protocol.txt
+ *
+ * It follows the complete protocol specification except for the slab
+ * reassignment as that was still referred to as work in progress.
+ *
+ * Options:
+ * - {Boolean} readable, is this stream readable. Defaults to true.
+ * - {Boolean} writable, is this stream writable. Defaults to true.
  *
  * @constructor
  * @param {Object} options
+ * @api public
  */
 function Parser(options) {
   options = options || {};
@@ -31,6 +41,12 @@ function Parser(options) {
  */
 Parser.prototype.__proto__ = Stream.prototype;
 
+/**
+ * Simple lookup table for the different response types.
+ *
+ * @type {Object}
+ * @api private
+ */
 Parser.responses = Object.create(null);
 [
     'CLIENT_ERROR'  // CLIENT_ERROR <error> \r\n    -- protocol failed
@@ -47,6 +63,7 @@ Parser.responses = Object.create(null);
   , 'TOUCHED'       // TOUCHED\r\n                  -- that tickles
   , 'VALUE'         // VALUE <key> <flags> <bytes> [<cas unique>]\r\n -- ok
   , 'VERSION'       // VERSION <version>\r\n        -- server version
+
   // <number> <count>\r\n                           -- size stat response
   // <number>\r\n                                   -- incr response
   // igoring SLAB reassignment, doesn't seem to be finished
@@ -66,6 +83,7 @@ Parser.responses = Object.create(null);
  *
  * @param {String} data
  * @returns {Boolean} successful write
+ * @api public
  */
 Parser.prototype.write = function write(data) {
   var length = (this.queue += data).length
@@ -73,7 +91,7 @@ Parser.prototype.write = function write(data) {
 
   // Only parse the data when actually have enough data to parse the complete
   // response, this saves a couple parse calls for large values that stream in
-  // their values
+  // their values.
   if (!(length < expected || Buffer.byteLength(this.queue) < length)) {
     this.expected = 0;
     this.parse();
@@ -89,112 +107,179 @@ Parser.prototype.write = function write(data) {
  */
 Parser.prototype.parse = function parse() {
   var data = this.queue
-    , length = data.length
-    , i = 0
-    , rn      // found a \r\n
-    , msg     // stores the response
-    , pos     // stores the current position
-    , err;    // stores the potential error messages
+    , bytesRemaining = Buffer.byteLength(data)
+    , charCode          // Stores the current cursor position
+    , rn                // Found a \r\n
+    , msg               // Stores the response
+    , err               // Stores the potential error message
+    , length;           // Stores the total message length which is added to the
+                        // cursor and substracted from the bytesRemaining
 
-  for (; i < length; i++) {
-    pos = data.charCodeAt(i);
+  for (var i = 0, l = data.length; i < l; i++) {
+    charCode = data.charCodeAt(i);
     rn = data.indexOf('\r\n', i);
 
-    // queue more data if we don't have the
+    // The only certainy we have from the protocol is that every message ends
+    // with a \r\n. If don't have this char in our data set anymore it means
+    // that we need to queue more information before we sucessfully parse the
+    // response.
     if (!~rn) {
-      // @TODO this might break because we need to queue bytes not ASCII length
-      this.expecting = (length - i) + 2;
+      this.expecting = bytesRemaining + 2;
       break;
     }
 
     // @TODO Order this in order of importance
-    // @TODO Check if we actually have all data, by checking for the \r\n
-    if (pos === 67) {
-      // CLIENT_ERROR
+    if (charCode === 67) {
+      // CLIENT_ERROR (charCode 67 === C):
+      //
+      // Parse the error messages that are caused by the client by sending
+      // invalid messages to the server.
       msg = data.slice(i + 13, rn);
 
       err = new Error(msg);
       err.code = 'CLIENT_ERROR';
       this.emit('error', err);
 
-      // message length + command + \r\n
-      i += (msg.length + 14);
-    } else if (pos === 68) {
-      // DELETED
+      // command length + message length + separators
+      length = msg.length + 14;
+      bytesRemaining -= length;
+      i += length;
+    } else if (charCode === 68) {
+      // DELETED (charCode 68 === D):
+      //
+      // The they was successfully removed from the server.
       this.emit('response', 'DELETED');
+
       i += 8;
-    } else if (pos === 69) {
-      // END, ERROR, EXISTS
-      pos = data.charCodeAt(i + 1);
-      if (pos === 78) {
-        // END
+      bytesRemaining -= 8;
+    } else if (charCode === 69) {
+      // END, ERROR, EXISTS (charCode 69 === E):
+      //
+      // We need to scan deeper to figure out which command we are dealing with.
+      // The second char is different in every command, so test against that.
+      charCode = data.charCodeAt(i + 1);
+
+      if (charCode === 78) {
+        // END:
+        //
+        // The END command indicates that all data has been send and that the
+        // response for the command has ended. This is used for multipe STAT or
+        // VALUE responses etc.
         this.emit('response', 'END');
-        pos = i;
+
         i += 4;
-      } else if (pos === 88) {
-        // EXISTS
+        bytesRemaining -= 4;
+      } else if (charCode === 88) {
+        // EXISTS:
+        //
+        // The item that you tried to store already exists on server and it's
+        // CAS value is expired.
         this.emit('response', 'EXISTS');
+
         i += 7;
+        bytesRemaining -= 7;
       } else {
-        // ERROR
+        // ERROR:
+        //
+        // The command that was send by the client is not known by the server.
         err = new Error('Command not known by server');
         err.code = 'ERROR';
         this.emit('error', err);
+
         i += 6;
+        bytesRemaining -= 6;
       }
-    } else if (pos === 78) {
-      // NOT_STORED, NOT_FOUND
-      pos = data.charCodeAt(i + 4);
-      if (pos === 70) {
-        // NOT_FOUND
+    } else if (charCode === 78) {
+      // NOT_STORED, NOT_FOUND (charCode 78 === N):
+      //
+      // We need to scan deeper to fully determin the actual command. As the
+      // first part of by responses start with NOT_ we need to check the 4th
+      // char to determin which command we are dealing with.
+      charCode = data.charCodeAt(i + 4);
+
+      if (charCode === 70) {
+        // NOT_FOUND:
+        //
+        // The item that the client is trying to store while using a CAS value
+        // does not exist.
         this.emit('response', 'NOT_FOUND');
+
         i += 10;
+        bytesRemaining -= 10;
       } else {
-        // NOT_STORED
+        // NOT_STORED:
+        //
+        // The data was not stored, this is not due to a failure but it failed
+        // to pass the condition of a ADD or REPLACE command.
         this.emit('response', 'NOT_STORED');
+
         i += 11;
+        bytesRemaining -= 11;
       }
-    } else if (pos === 79) {
-      // OK
+    } else if (charCode === 79) {
+      // OK (charCode 79 === O):
+      //
+      // OKIDOKIE, we are going to do the thing you asked the server todo.
       this.emit('response', 'OK');
+
       i += 3;
-    } else if (pos === 83) {
-      // SERVER_ERROR, STAT, STORED
-      pos = data.charCodeAt(i + 2);
-      if (pos === 82) {
-        // SERVER_ERROR (12)
+      bytesRemaining -= 3;
+    } else if (charCode === 83) {
+      // SERVER_ERROR, STAT, STORED (charCode 83 === S):
+      //
+      // We need to scan deeper, as the are multiple commands starting with an
+      // S we need to check the second char to determin the correct command.
+      charCode = data.charCodeAt(i + 2);
+
+      if (charCode === 82) {
+        // SERVER_ERROR:
+        //
+        // We are fucked, the server is fucked, everything is fucked.
         msg = data.slice(i + 13, rn);
 
         err = new Error(msg);
         err.code = 'SERVER_ERROR';
         this.emit('error', err);
 
-        // message length + command + \r\n
-        i += (msg.length + 14);
-      } else if (pos === 79) {
-        // STORED
+        // command length + message length + separators
+        length = msg.length + 14;
+        i += length;
+        bytesRemaining -= length;
+      } else if (charCode === 79) {
+        // STORED:
+        //
+        // The data was stored successfully.
         this.emit('response', 'STORED');
+
         i += 7;
+        bytesRemaining -= 7;
       } else {
-        // STAT
+        // STAT:
+        //
+        // Received a stat from the server.
         // @TODO
       }
-    } else if (pos === 84) {
-      // TOUCHED
+    } else if (charCode === 84) {
+      // TOUCHED (charCode 84 === T):
+      //
+      // Updated the expiree of the given key.
       this.emit('response', 'TOUCHED');
+
       i += 8;
-    } else if (pos === 86) {
+      bytesRemaining -= 8;
+    } else if (charCode === 86) {
       // VALUE, VERSION
-      pos = data.charCodeAt(i + 1);
-      if (pos === 65) {
+      charCode = data.charCodeAt(i + 1);
+
+      if (charCode === 65) {
         // VALUE
-        var start = i
-          , hascas
-          , value
-          , bytes
-          , flags
-          , key
-          , cas;
+        var start = i // Store our starting point, so we can reset the cursor
+          , hascas    // Do we have a CAS response
+          , value     // Stored the value buffer
+          , bytes     // The amount of bytes
+          , flags     // The flags that were stored with the value
+          , key       // Stores key
+          , cas;      // Stores the CAS value
 
         // @TODO length folding just like we do in #write
         // @TODO test inline var statement vs outside loop var statement
@@ -205,46 +290,60 @@ Parser.prototype.parse = function parse() {
         // key name
         key = data.slice(i, data.indexOf(' ', i));
         i += key.length + 1;
+        bytesRemaining -= Buffer.byteLength(key) + 1; // Key can be unicode
 
         // flags
         flags = data.slice(i, data.indexOf(' ', i));
-        i += flags.length + 1;
+        length = flags.length + 1;
+        i += length;
+        bytesRemaining -= length;
 
         // check if we have a space in this batch so we know if there's a CAS
         // value and that the bytes should be split on the space or on a \r\n
-        pos = data.indexOf(' ', i);
-        hascas = ~pos && pos < rn;
+        charCode = data.indexOf(' ', i);
+        hascas = ~charCode && charCode < rn;
 
         bytes = data.slice(i
           , hascas
-            ? pos
+            ? charCode
             : rn
         );
-        i += bytes.length + 1;
+
+        length = bytes.length + 1;
+        i += length;
+        bytesRemaining -= length;
 
         // Now that we know how much bytes we should expect to have all the
         // content or if we need to wait and buffer moar
         bytes = +bytes;
-        //if (bytes >= length) {
-        //  i = start; // reset to start to start so the buffer gets cleaned up
-        //  this.expecting = bytes;
-        //  break;
-        //}
+        if (bytes >= bytesRemaining) {
+          i = start; // reset to start to start so the buffer gets cleaned up
+          this.expecting = bytes;
+          break;
+        }
 
         if (hascas) {
           cas = data.slice(i, rn);
-          i+= cas.length + 2;
+
+          length = cas.length + 2;
+          i += length;
+          bytes -= length;
         } else {
           i += 1;
+          bytesRemaining -= 1;
         }
 
-        // because we are working with binary data here, we need to alocate
+        // Because we are working with binary data here, we need to alocate
         // a new buffer, so we can properly slice the data from the string as
         // javacript doesn't support String#slice that is binary/multibyte aware
-        // @TODO benchmark this against a pure buffer solution
+        // @TODO benchmark this against a pure buffer solution.
         value = new Buffer(bytes);
-        data = data.slice(i);
-        i = 0;
+
+        // @TODO test if it really matters if we slice off the data first so we
+        // have smaller string to write to the buffer.
+        // data = data.slice(i);
+        // i = 0;
+
         value.write(data, 0, bytes);
         value = value.toString();
 
@@ -252,27 +351,39 @@ Parser.prototype.parse = function parse() {
 
         // + value length & closing \r\n
         i += value.length + 1;
+        bytesRemaining -= bytes + 1;
       } else {
-        // VERSION
+        // VERSION:
+        //
+        // The server version, usually semver formatted but it can also contain
+        // alpha chars such as beta, dev or pewpew
         msg = data.slice(i + 8, rn);
         this.emit('response', 'VERSION', msg);
 
         // message length + command + \r\n
-        pos = i;
-        i += (msg.length + 9);
+        length = msg.length + 9;
+        i += length;
+        bytesRemaining -= length;
       }
-    } else if (pos >= 48 && pos <= 57) {
-      // numberic response, INC/DEC/ STAT value
+    } else if (charCode >= 48 && charCode <= 57) {
+      // INCR/DECR/STAT (charCode 48 === '0' && charCode 57 === 9)
+      //
+      // It checks if we have a numeric response, this is only returned for INC,
+      // DECR or item size response.
       msg = data.slice(i, rn);
 
       if (+msg) {
         this.emit('response', 'INCR/DECR', msg);
-        i += (msg.length + 1);
+
+        length = msg.length + 1;
+        i += length;
+        bytesRemaining -= length;
       } else {
         // @TODO handle size response
       }
     } else {
-      // UNKOWN RESPONSE
+      // UNKOWN RESPONSE, something went really fucked up wrong, we should
+      // probably destroy the parser.
       err = new Error('Unknown response');
       err.data = data.slice(i);
       this.emit('error', err);
@@ -336,7 +447,7 @@ exports.createStream = function createStream(options) {
 };
 
 /**
- * Expose the parser constructor
+ * Expose the parser constructor.
  *
  * @type {Parser}
  */
