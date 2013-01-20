@@ -86,21 +86,11 @@ Fuzzer.prototype.__proto__ = Server.prototype;
 Fuzzer.prototype.connector = function connector(socket) {
   var responses = this.config.get('responses')
     , interval = this.config.get('interval')
-    , iterations = 0
     , self = this
     , start;
 
-  console.log(
-      'received a new connection, sending %d responses'
-    , this.config.get('responses')
-  );
-
-    if (++iterations >= this.config.get('responses')) {
-      if (this.config.get('auto close')) {
-      }
-
-      return clearInterval(interval);
-    }
+  // Add different properties to the socket instance.
+  socket.iterations = 0;
 
   start = Date.now();
   (function loophole () {
@@ -108,7 +98,7 @@ Fuzzer.prototype.connector = function connector(socket) {
       if (err) return socket.end();
 
       // process.stdout.write('writing response: '+ iterations +'\r');
-      if (++iterations >= responses) {
+      if (++socket.iterations >= responses) {
         if (self.config.get('auto close')) {
           console.log();
           socket.end();
@@ -127,7 +117,7 @@ Fuzzer.prototype.connector = function connector(socket) {
 
   // Make sure we clear the interval once
   socket.once('end', function theend() {
-    iterations = this.config.get('responses');
+    socket.iterations = this.config.get('responses');
   }.bind(this));
 };
 
@@ -142,7 +132,10 @@ Fuzzer.prototype.random = function random(socket, callback) {
   var reply = this.responses[ Math.floor(Math.random() * this.responses.length) ]
     , self = this;
 
-  Fuzzer.responders[reply](this.config, function (err, line) {
+  Fuzzer.responders[reply].call({
+      fuzzer: this
+    , socket: socket
+  }, this.config, function writing(err, line) {
     // Handle errors as if they were server errors
     if (err) {
       line = 'SERVER_ERROR '+ err.message +'\r\n';
@@ -183,11 +176,6 @@ Fuzzer.responders.CLIENT_ERROR = function fabricate(config, done) {
     , 'invalid numeric delta argument'
     , 'slab reassignment disabled'
     , 'usage: stats detail on|off|dump'
-    , (g.string() + g.string() + g.string()).replace('\r\n', '')
-    , (g.string() + g.string() + g.string()).replace('\r\n', '')
-    , (g.string() + g.string() + g.string()).replace('\r\n', '')
-    , (g.string() + g.string() + g.string()).replace('\r\n', '')
-    , (g.string() + g.string() + g.string()).replace('\r\n', '')
   ];
 
   done(undefined, 'CLIENT_ERROR '+ errors[ Math.floor(Math.random() * errors.length) ] +'\r\n');
@@ -207,11 +195,6 @@ Fuzzer.responders.SERVER_ERROR = function fabricate(config, done){
     , 'out of memory writing stats'
     , 'out of memory'
     , 'output line too long'
-    , (g.string() + g.string() + g.string()).replace('\r\n', '')
-    , (g.string() + g.string() + g.string()).replace('\r\n', '')
-    , (g.string() + g.string() + g.string()).replace('\r\n', '')
-    , (g.string() + g.string() + g.string()).replace('\r\n', '')
-    , (g.string() + g.string() + g.string()).replace('\r\n', '')
   ];
 
   done(undefined, 'SERVER_ERROR '+ errors[ Math.floor(Math.random() * errors.length) ] +'\r\n');
@@ -271,6 +254,10 @@ Fuzzer.responders.STAT = function fabricate(config, done){
 
   // generate a bunch of STAT <key> <value> calls
   done(undefined, STAT +'\r\nEND\r\n');
+
+  // we end the call with and extra END, so emit that
+  this.socket.iterations++;
+  this.fuzzer.emit('fuzzer', 'END', 'END\r\n');
 };
 
 [
@@ -304,6 +291,7 @@ Fuzzer.responders.VALUE = function fabricate(config, done){
     , size = Math.floor(Math.random() * config.get('max value size'))
     , keysize = Math.floor(Math.random() * config.get('max key size'))
     , set = Math.floor(Math.random() * 5)
+    , self = this
     , res = ''
     , response
     , length
@@ -328,7 +316,11 @@ Fuzzer.responders.VALUE = function fabricate(config, done){
     }
 
     res += 'END\r\n';
-    return done(undefined, res);
+    done(undefined, res);
+
+    // we end the call with and extra END, so emit that
+    this.socket.iterations++;
+    this.fuzzer.emit('fuzzer', 'END', 'END\r\n');
   }
 
   // do value <key> <flags> <bytes> [optional cas]\r\n data\r\nEND\r\n
@@ -363,6 +355,10 @@ Fuzzer.responders.VALUE = function fabricate(config, done){
         + '\r\n'
         + response +'\r\nEND\r\n'
       );
+
+      // we end the call with and extra END, so emit that
+      self.socket.iterations++;
+      self.fuzzer.emit('fuzzer', 'END', 'END\r\n');
     });
   });
 };
