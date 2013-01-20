@@ -25,12 +25,12 @@ function Parser(options) {
   options = options || {};
   // Assigning properties on `this` is faster then adding it to the prototype
 
-  // Stream interface related properties
+  // Stream interface related properties.
   this.readable = 'readable' in options ? options.readable : true;
   this.writable = 'writable' in options ? options.writable : true;
   this.destroyed = false;
 
-  // Parser related properties
+  // Parser related properties.
   this.queue = '';    // This is where the server responses are parsed from
   this.expecting = 0; // How much bytes we expect to receive before parse a result
 }
@@ -66,8 +66,7 @@ Parser.responses = Object.create(null);
 
   // <number> <count>\r\n                           -- size stat response
   // <number>\r\n                                   -- incr response
-  // igoring SLAB reassignment, doesn't seem to be finished
-
+  // ignoring SLAB reassignment, doesn't seem to be finished
 ].forEach(function commanding(command, i) {
   Parser.responses[command] = i;
 });
@@ -75,9 +74,9 @@ Parser.responses = Object.create(null);
 /**
  * Receives data from a Stream, we assume that the stream has
  * `setEncoding('utf8')` so we are sure that we receive strings as arguments and
- * don't have to worry about receiving a half UTF-8 characture.
+ * don't have to worry about receiving a half UTF-8 character.
  *
- * @TODO implement backoff for when the queue is to full of data
+ * @TODO implement back off for when the queue is to full of data
  * @TODO return false when we queued to much
  * @TODO emit `drain` when we drained our queue
  *
@@ -113,15 +112,15 @@ Parser.prototype.parse = function parse() {
     , msg               // Stores the response
     , err               // Stores the potential error message
     , length;           // Stores the total message length which is added to the
-                        // cursor and substracted from the bytesRemaining
+                        // cursor and subtracted from the bytesRemaining
 
   for (var i = 0, l = data.length; i < l; i++) {
     charCode = data.charCodeAt(i);
     rn = data.indexOf('\r\n', i);
 
-    // The only certainy we have from the protocol is that every message ends
+    // The only certainty we have from the protocol is that every message ends
     // with a \r\n. If don't have this char in our data set anymore it means
-    // that we need to queue more information before we sucessfully parse the
+    // that we need to queue more information before we successfully parse the
     // response.
     if (!~rn) {
       this.expecting = bytesRemaining + 2;
@@ -142,8 +141,8 @@ Parser.prototype.parse = function parse() {
 
       // command length + message length + separators
       length = msg.length + 14;
-      bytesRemaining -= length;
       i += length;
+      bytesRemaining -= length;
     } else if (charCode === 68) {
       // DELETED (charCode 68 === D):
       //
@@ -163,7 +162,7 @@ Parser.prototype.parse = function parse() {
         // END:
         //
         // The END command indicates that all data has been send and that the
-        // response for the command has ended. This is used for multipe STAT or
+        // response for the command has ended. This is used for multiple STAT or
         // VALUE responses etc.
         this.emit('response', 'END');
 
@@ -192,9 +191,9 @@ Parser.prototype.parse = function parse() {
     } else if (charCode === 78) {
       // NOT_STORED, NOT_FOUND (charCode 78 === N):
       //
-      // We need to scan deeper to fully determin the actual command. As the
+      // We need to scan deeper to fully determine the actual command. As the
       // first part of by responses start with NOT_ we need to check the 4th
-      // char to determin which command we are dealing with.
+      // char to determine which command we are dealing with.
       charCode = data.charCodeAt(i + 4);
 
       if (charCode === 70) {
@@ -228,7 +227,7 @@ Parser.prototype.parse = function parse() {
       // SERVER_ERROR, STAT, STORED (charCode 83 === S):
       //
       // We need to scan deeper, as the are multiple commands starting with an
-      // S we need to check the second char to determin the correct command.
+      // S we need to check the second char to determine the correct command.
       charCode = data.charCodeAt(i + 2);
 
       if (charCode === 82) {
@@ -262,17 +261,29 @@ Parser.prototype.parse = function parse() {
     } else if (charCode === 84) {
       // TOUCHED (charCode 84 === T):
       //
-      // Updated the expiree of the given key.
+      // Updated the expiry of the given key.
       this.emit('response', 'TOUCHED');
 
       i += 8;
       bytesRemaining -= 8;
     } else if (charCode === 86) {
-      // VALUE, VERSION
+      // VALUE, VERSION (charCode 86 === V):
+      //
+      // Either a value or a version response, moving the cursor by one char
+      // yields enough specificity to determine the correct response.
       charCode = data.charCodeAt(i + 1);
 
       if (charCode === 65) {
-        // VALUE
+        // VALUE:
+        //
+        // This is where all the magic happens, value parsing is one if not THE
+        // hardest part of parsing the server responses, we have key that could
+        // be Unicode an optional CAS value and a response who's length is
+        // specified in bytes. These bytes is something that isn't easily
+        // supported within JavaScript. When you do a `.length` on a string you
+        // get the char count and not the actual bytes. Pure Buffer parsing
+        // might be an option for some people, but it's a lot of switching
+        // between C++ calls vs regular optimized JavaScript shizzle.
         var start = i // Store our starting point, so we can reset the cursor
           , hascas    // Do we have a CAS response
           , value     // Stored the value buffer
@@ -283,14 +294,14 @@ Parser.prototype.parse = function parse() {
 
         // @TODO length folding just like we do in #write
         // @TODO test inline var statement vs outside loop var statement
-        // @TODO test if saving the start is a good idea or just
-
+        // @TODO test if saving the start is a good idea or just pointless
         i += 6;
+        bytesRemaining += 6;
 
         // key name
         key = data.slice(i, data.indexOf(' ', i));
         i += key.length + 1;
-        bytesRemaining -= Buffer.byteLength(key) + 1; // Key can be unicode
+        bytesRemaining -= Buffer.byteLength(key) + 1; // Key can be Unicode
 
         // flags
         flags = data.slice(i, data.indexOf(' ', i));
@@ -314,28 +325,31 @@ Parser.prototype.parse = function parse() {
         bytesRemaining -= length;
 
         // Now that we know how much bytes we should expect to have all the
-        // content or if we need to wait and buffer moar
+        // content or if we need to wait and buffer more.
         bytes = +bytes;
         if (bytes >= bytesRemaining) {
-          i = start; // reset to start to start so the buffer gets cleaned up
+          // Reset the cursor to the start of the command so the parsed data is
+          // removed from the queue when we leave the loop.
+          i = start;
           this.expecting = bytes;
           break;
         }
 
+        // The CAS value is optionally.
         if (hascas) {
           cas = data.slice(i, rn);
 
           length = cas.length + 2;
           i += length;
-          bytes -= length;
+          bytesRemaining -= length;
         } else {
           i += 1;
           bytesRemaining -= 1;
         }
 
-        // Because we are working with binary data here, we need to alocate
+        // Because we are working with binary data here, we need to allocate
         // a new buffer, so we can properly slice the data from the string as
-        // javacript doesn't support String#slice that is binary/multibyte aware
+        // JavaScript doesn't support String#slice that is binary/multi byte aware
         // @TODO benchmark this against a pure buffer solution.
         value = new Buffer(bytes);
 
@@ -343,7 +357,6 @@ Parser.prototype.parse = function parse() {
         // have smaller string to write to the buffer.
         // data = data.slice(i);
         // i = 0;
-
         value.write(data, 0, bytes);
         value = value.toString();
 
@@ -366,7 +379,7 @@ Parser.prototype.parse = function parse() {
         bytesRemaining -= length;
       }
     } else if (charCode >= 48 && charCode <= 57) {
-      // INCR/DECR/STAT (charCode 48 === '0' && charCode 57 === 9)
+      // INCR/DECR/STAT (charCode 48 === '0' && charCode 57 === 9):
       //
       // It checks if we have a numeric response, this is only returned for INC,
       // DECR or item size response.
@@ -382,11 +395,12 @@ Parser.prototype.parse = function parse() {
         // @TODO handle size response
       }
     } else {
-      // UNKOWN RESPONSE, something went really fucked up wrong, we should
+      // UNKNOWN RESPONSE, something went really fucked up wrong, we should
       // probably destroy the parser.
       err = new Error('Unknown response');
+      err.CODE = 'EPARSERFUCKUPLULZ';
       err.data = data.slice(i);
-      this.emit('error', err);
+      this.destroy(err);
     }
   }
 
@@ -410,7 +424,7 @@ Parser.prototype.end = function end(data) {
 
   this.writable = false;
 
-  // the Parser#destroy emits a `close` event in the nextTick, so we can
+  // The Parser#destroy emits a `close` event in the nextTick, so we can
   // safely call that before we emit `close` so end event comes before close as
   // required (and done by other Node.js streams)
   this.emit('end');
@@ -419,20 +433,21 @@ Parser.prototype.end = function end(data) {
 /**
  * Completely murder the stream and clean up all references.
  *
- * @param {Error} exception
+ * @param {Error} err
  * @api private
  */
-Parser.prototype.destroy = Parser.prototype.destroySoon = function destroy(exception) {
+Parser.prototype.destroy = Parser.prototype.destroySoon = function destroy(err) {
   if (this.destroyed) return;
 
   this.queue = '';
   this.destroyed = true;
+  this.writable = false;
 
   var self = this;
   process.nextTick(function closing () {
-    if (exception) self.emit('error', exception);
+    if (err) self.emit('error', err);
 
-    self.emit('close', !!exception);
+    self.emit('close', !!err);
   });
 };
 
