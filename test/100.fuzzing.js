@@ -2,10 +2,23 @@
 
 var parser = require('../index.js').createStream()
   , fuzzer = require('./fuzzer').createServer({
-        'responses': 100000
+        'responses': 1000
       , 'max value size': 256
       , 'replies': [
             'CLIENT_ERROR'
+          , 'DELETED'
+          , 'END'
+          , 'ERROR'
+          , 'EXISTS'
+          , 'NOT_FOUND'
+          , 'NOT_STORED'
+          , 'OK'
+          , 'SERVER_ERROR'
+        //, 'STAT'
+          , 'STORED'
+          , 'TOUCHED'
+          , 'VALUE'
+          , 'VERSION'
         ]
     });
 
@@ -37,6 +50,7 @@ parser.on('response', function (code, value) {
     console.log('Failed to parse', expecting, 'got '+ code);
     console.log('Parsed: ', responses);
     console.log('Last: ', last);
+
     process.exit(1);
   }
 
@@ -45,7 +59,7 @@ parser.on('response', function (code, value) {
   last.value = value;
 });
 
-parser.on('error', function (err) {
+parser.on('error:response', function (err) {
   var expecting = send.shift()
     , code = err.code;
 
@@ -58,8 +72,6 @@ parser.on('error', function (err) {
     console.log('Error: ', err.message);
     console.log('Last: ', last);
 
-    //if (err.data) console.log('Data: ', err.data);
-
     process.exit(1);
   }
 
@@ -69,5 +81,8 @@ parser.on('error', function (err) {
 });
 
 fuzzer.listen(11211, function () {
-  require('net').connect(11211).pipe(parser);
+  var connection = require('net').connect(11211);
+
+  connection.setEncoding('utf8');
+  connection.pipe(parser, { end: false });
 });
