@@ -127,6 +127,7 @@ Parser.prototype.parse = function parse() {
     }
 
     // @TODO Order this in order of importance
+    // @TODO see if we can reduce the amount i += calls by setting rn value..
     if (charCode === 67) {
       // CLIENT_ERROR (charCode 67 === C):
       //
@@ -255,7 +256,17 @@ Parser.prototype.parse = function parse() {
         // STAT:
         //
         // Received a stat from the server.
-        // @TODO
+        var pos = data.indexOf(' ', i + 5)
+          , val;
+
+        msg = data.slice(i + 5, pos);
+        val = data.slice(i + 6 + msg.length, rn);
+
+        this.emit('response', 'STAT', msg, val);
+
+        length = msg.length + val.length + 7;
+        i += length;
+        bytesRemaining -= length;
       }
     } else if (charCode === 84) {
       // TOUCHED (charCode 84 === T):

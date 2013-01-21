@@ -331,8 +331,40 @@ describe('memcached-stream', function () {
     });
 
     describe('STAT', function () {
-      it('emits an `response` event when encountered');
-      it('correctly cleans the queue');
+      var data = 'STAT listen_disabled_num 1000\r\n';
+
+      it('emits an `response` event when encountered', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (command, key, value) {
+          expect(command).to.equal('STAT');
+          expect(key).to.equal('listen_disabled_num');
+          expect(value).to.equal('1000');
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
+        });
+
+        memcached.write(data);
+      });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('response', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('BANANANANA');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
+      });
     });
 
     describe('STORED', function () {
