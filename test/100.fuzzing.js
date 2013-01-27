@@ -2,7 +2,7 @@
 
 var parser = require('../index.js').createStream()
   , fuzzer = require('./fuzzer').createServer({
-        'responses': 1000
+        'responses': 10000
       , 'max value size': 256
       , 'replies': [
             'CLIENT_ERROR'
@@ -14,7 +14,7 @@ var parser = require('../index.js').createStream()
           , 'NOT_STORED'
           , 'OK'
           , 'SERVER_ERROR'
-        //, 'STAT'
+          , 'STAT'
           , 'STORED'
           , 'TOUCHED'
           , 'VALUE'
@@ -42,15 +42,14 @@ parser.on('response', function (code, value) {
   var expecting = send.shift();
 
   responses++;
-  process.stdout.write('Parsed response: '+ responses +'\r');
 
   if (
       !~code.indexOf(expecting.code)
     && (value ? !~expecting.line.indexOf(value) : false)
   ) {
-    console.log('Failed to parse', expecting, 'got '+ code);
-    console.log('Parsed: ', responses);
-    console.log('Last: ', last);
+    console.error('Failed to parse', expecting, 'got '+ code);
+    console.error('Parsed: ', responses);
+    console.error('Last: ', last);
 
     process.exit(1);
   }
@@ -65,13 +64,12 @@ parser.on('error:response', function (err) {
     , code = err.code;
 
   responses++;
-  process.stdout.write('Parsed response: '+ responses +'\r');
 
   if (code !== expecting.code) {
-    console.log('Failed to parse', expecting, 'got error '+ code);
-    console.log('Parsed: ', responses);
-    console.log('Error: ', err.message);
-    console.log('Last: ', last);
+    console.error('Failed to parse', expecting, 'got error '+ code);
+    console.error('Parsed: ', responses);
+    console.error('Error: ', err.message);
+    console.error('Last: ', last);
 
     process.exit(1);
   }
