@@ -40,10 +40,9 @@ function Fuzzer(options) {
   //
   this.config.set('interval', 10);              // each <x> ms send a new response
   this.config.set('responses', 1000);           // the amount of responses to send
-  this.config.set('unique values', 25);         // unique VALUE responses (stored in mem)
+  this.config.set('unique values', 100);        // unique VALUE responses (stored in mem)
   this.config.set('auto close', true);          // automatically close the connection
-  this.config.set('write log', true);           // should we write a log send data
-  this.config.set('log location', __dirname);   // where to write the log
+  this.config.set('write stdout', true);        // should we write responses to stdout
   this.config.set('replies'
     , Object.keys(Fuzzer.responders)            // responses we want to receive
   );
@@ -97,13 +96,8 @@ Fuzzer.prototype.connector = function connector(socket) {
     self.random(socket, function callback(err) {
       if (err) return socket.end();
 
-      // process.stdout.write('writing response: '+ iterations +'\r');
       if (++socket.iterations >= responses) {
-        if (self.config.get('auto close')) {
-          console.log();
-          socket.end();
-          console.log('auto closed the connection');
-        }
+        if (self.config.get('auto close')) socket.end();
 
         return;
       }
@@ -130,6 +124,7 @@ Fuzzer.prototype.connector = function connector(socket) {
  */
 Fuzzer.prototype.random = function random(socket, callback) {
   var reply = this.responses[ Math.floor(Math.random() * this.responses.length) ]
+    , stdout = this.config.get('write stdout')
     , self = this;
 
   Fuzzer.responders[reply].call({
@@ -147,6 +142,9 @@ Fuzzer.prototype.random = function random(socket, callback) {
     // every line it receives is parsed correctly.
     self.emit('fuzzer', reply, line);
     socket.write(line, callback);
+    if (stdout) {
+      process.stdout.write(line);
+    }
   });
 };
 
@@ -250,10 +248,10 @@ Fuzzer.responders.STAT = function fabricate(config, done){
     , 'STAT total_items '+ g.size()
     , 'STAT evictions '+ g.size()
     , 'STAT reclaimed '+ g.size()
-  ].join('\r\n');
+  ];
 
   // generate a bunch of STAT <key> <value> calls
-  done(undefined, STAT +'\r\nEND\r\n');
+  done(undefined, STAT[Math.floor(Math.random() * STAT.length)] +'\r\nEND\r\n');
 
   // we end the call with and extra END, so emit that
   this.socket.iterations++;
@@ -362,6 +360,7 @@ Fuzzer.responders.VALUE = function fabricate(config, done){
     });
   });
 };
+Fuzzer.responders.VALUE.weight = 10;
 
 Fuzzer.responders.VERSION = function fabricate(config, done){
   var major = Math.floor(Math.random() * 20)
