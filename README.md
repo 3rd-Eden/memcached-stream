@@ -76,6 +76,7 @@ immediately as we have no idea in what state our parser is in.
 parser.on('error', function (err) {
   // You should kill the connection and re construct the parser here.
 });
+```
 
 Once you are done with parsing you can terminate it by calling:
 
