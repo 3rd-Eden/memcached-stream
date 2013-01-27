@@ -146,7 +146,7 @@ Parser.prototype.parse = function parse() {
       // DELETED (charCode 68 === D):
       //
       // The they was successfully removed from the server.
-      this.emit('response', 'DELETED');
+      this.emit('response', 'DELETED', true);
 
       i += 8;
       bytesRemaining -= 8;
@@ -163,7 +163,7 @@ Parser.prototype.parse = function parse() {
         // The END command indicates that all data has been send and that the
         // response for the command has ended. This is used for multiple STAT or
         // VALUE responses etc.
-        this.emit('response', 'END');
+        this.emit('response', 'END', true);
 
         i += 4;
         bytesRemaining -= 4;
@@ -172,7 +172,7 @@ Parser.prototype.parse = function parse() {
         //
         // The item that you tried to store already exists on server and it's
         // CAS value is expired.
-        this.emit('response', 'EXISTS');
+        this.emit('response', 'EXISTS', false);
 
         i += 7;
         bytesRemaining -= 7;
@@ -200,7 +200,7 @@ Parser.prototype.parse = function parse() {
         //
         // The item that the client is trying to store while using a CAS value
         // does not exist.
-        this.emit('response', 'NOT_FOUND');
+        this.emit('response', 'NOT_FOUND', false);
 
         i += 10;
         bytesRemaining -= 10;
@@ -209,7 +209,7 @@ Parser.prototype.parse = function parse() {
         //
         // The data was not stored, this is not due to a failure but it failed
         // to pass the condition of a ADD or REPLACE command.
-        this.emit('response', 'NOT_STORED');
+        this.emit('response', 'NOT_STORED', false);
 
         i += 11;
         bytesRemaining -= 11;
@@ -218,7 +218,7 @@ Parser.prototype.parse = function parse() {
       // OK (charCode 79 === O):
       //
       // OKIDOKIE, we are going to do the thing you asked the server todo.
-      this.emit('response', 'OK');
+      this.emit('response', 'OK', true);
 
       i += 3;
       bytesRemaining -= 3;
@@ -247,7 +247,7 @@ Parser.prototype.parse = function parse() {
         // STORED:
         //
         // The data was stored successfully.
-        this.emit('response', 'STORED');
+        this.emit('response', 'STORED', true);
 
         i += 7;
         bytesRemaining -= 7;
@@ -271,7 +271,7 @@ Parser.prototype.parse = function parse() {
       // TOUCHED (charCode 84 === T):
       //
       // Updated the expiry of the given key.
-      this.emit('response', 'TOUCHED');
+      this.emit('response', 'TOUCHED', true);
 
       i += 8;
       bytesRemaining -= 8;
@@ -397,7 +397,7 @@ Parser.prototype.parse = function parse() {
       msg = data.slice(i, rn);
 
       if (+msg) {
-        this.emit('response', 'INCR/DECR', msg);
+        this.emit('response', 'INCR/DECR', +msg);
 
         length = msg.length + 1;
         i += length;

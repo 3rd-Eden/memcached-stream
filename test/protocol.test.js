@@ -53,8 +53,9 @@ describe('memcached-stream', function () {
       it('emits an `response` event when encountered', function (done) {
         var memcached = new Parser();
 
-        memcached.on('response', function (command) {
+        memcached.on('response', function (command, data) {
           expect(command).to.equal('DELETED');
+          expect(data).to.equal(true);
 
           // should clear the cache
           process.nextTick(function () {
@@ -87,8 +88,9 @@ describe('memcached-stream', function () {
       it('emits an `response` event when encountered', function (done) {
         var memcached = new Parser();
 
-        memcached.on('response', function (command) {
+        memcached.on('response', function (command, data) {
           expect(command).to.equal('END');
+          expect(data).to.equal(true);
 
           // should clear the cache
           process.nextTick(function () {
@@ -159,8 +161,9 @@ describe('memcached-stream', function () {
       it('emits an `response` event when encountered', function (done) {
         var memcached = new Parser();
 
-        memcached.on('response', function (command) {
+        memcached.on('response', function (command, data) {
           expect(command).to.equal('EXISTS');
+          expect(data).to.equal(false);
 
           // should clear the cache
           process.nextTick(function () {
@@ -194,8 +197,9 @@ describe('memcached-stream', function () {
       it('emits an `response` event when encountered', function (done) {
         var memcached = new Parser();
 
-        memcached.on('response', function (command) {
+        memcached.on('response', function (command, data) {
           expect(command).to.equal('NOT_FOUND');
+          expect(data).to.equal(false);
 
           // should clear the cache
           process.nextTick(function () {
@@ -229,8 +233,9 @@ describe('memcached-stream', function () {
       it('emits an `response` event when encountered', function (done) {
         var memcached = new Parser();
 
-        memcached.on('response', function (command) {
+        memcached.on('response', function (command, data) {
           expect(command).to.equal('NOT_STORED');
+          expect(data).to.equal(false);
 
           // should clear the cache
           process.nextTick(function () {
@@ -264,8 +269,9 @@ describe('memcached-stream', function () {
       it('emits an `response` event when encountered', function (done) {
         var memcached = new Parser();
 
-        memcached.on('response', function (command) {
+        memcached.on('response', function (command, data) {
           expect(command).to.equal('OK');
+          expect(data).to.equal(true);
 
           // should clear the cache
           process.nextTick(function () {
@@ -373,8 +379,9 @@ describe('memcached-stream', function () {
       it('emits an `response` event when encountered', function (done) {
         var memcached = new Parser();
 
-        memcached.on('response', function (command) {
+        memcached.on('response', function (command, data) {
           expect(command).to.equal('STORED');
+          expect(data).to.equal(true);
 
           // should clear the cache
           process.nextTick(function () {
@@ -408,8 +415,9 @@ describe('memcached-stream', function () {
       it('emits an `response` event when encountered', function (done) {
         var memcached = new Parser();
 
-        memcached.on('response', function (command) {
+        memcached.on('response', function (command, data) {
           expect(command).to.equal('TOUCHED');
+          expect(data).to.equal(true);
 
           // should clear the cache
           process.nextTick(function () {
@@ -541,7 +549,7 @@ describe('memcached-stream', function () {
 
         memcached.on('response', function (command, data) {
           expect(command).to.equal('INCR/DECR');
-          expect(data).to.equal('131447');
+          expect(data).to.equal(131447);
 
           // should clear the cache
           process.nextTick(function () {
