@@ -44,27 +44,37 @@ Parser.prototype.__proto__ = Stream.prototype;
 /**
  * Simple lookup table for the different response types.
  *
+ * - (*g) These responses are available for garantiadata.com cloud only
+ *   http://garantiadata.com/blog/finally-you-can-see-whats-stored-in-your-memcached
+ *
  * @type {Object}
  * @api private
  */
 Parser.responses = Object.create(null);
 [
-    'CLIENT_ERROR'  // (00) CLIENT_ERROR <error> \r\n    -- Protocol failed
-  , 'DELETED'       // (01) DELETED\r\n                  -- Value deleted
-  , 'END'           // (02) END\r\n                      -- Done
-  , 'ERROR'         // (03) ERROR\r\n                    -- Command not known
-  , 'EXISTS'        // (04) EXISTS\r\n                   -- Item has been modified
-  , 'NOT_FOUND'     // (05) NOT_FOUND\r\n                -- OK, but item not found
-  , 'NOT_STORED'    // (06) NOT_STORED\r\n               -- OK, but not stored
-  , 'OK'            // (07) OK\r\n                       -- OK
-  , 'SERVER_ERROR'  // (08) SERVER_ERROR <error> \r\n    -- Server fuckup
-  , 'STAT'          // (09) STAT <name> <value>\r\n      -- Server stats
-  , 'STORED'        // (10) STORED\r\n                   -- Saved response
-  , 'TOUCHED'       // (11) TOUCHED\r\n                  -- That tickles
-  , 'VALUE'         // (12) VALUE <key> <flags> <bytes> [<cas unique>]\r\n -- ok
-  , 'VERSION'       // (13) VERSION <version>\r\n        -- Server version
-  , 'INCR/DECR'     // (14) <number>\r\n                 -- Incr response
+    'CLIENT_ERROR'  // CLIENT_ERROR <error> \r\n    -- Protocol failed
+  , 'DELETED'       // DELETED\r\n                  -- Value deleted
+  , 'END'           // END\r\n                      -- Done
+  , 'KEY'           // KEY <bytes> <key>            -- Key response (*g)
+  , 'ERROR'         // ERROR\r\n                    -- Command not known
+  , 'EXISTS'        // EXISTS\r\n                   -- Item has been modified
+  , 'NOT_FOUND'     // NOT_FOUND\r\n                -- OK, but item not found
+  , 'NOT_STORED'    // NOT_STORED\r\n               -- OK, but not stored
+  , 'OK'            // OK\r\n                       -- OK
+  , 'SERVER_ERROR'  // SERVER_ERROR <error> \r\n    -- Server fuckup
+  , 'STAT'          // STAT <name> <value>\r\n      -- Server stats
+  , 'STORED'        // STORED\r\n                   -- Saved response
+  , 'TOUCHED'       // TOUCHED\r\n                  -- That tickles
+  , 'VALUE'         // VALUE <key> <flags> <bytes> [<cas unique>]\r\n -- ok
+  , 'VERSION'       // VERSION <version>\r\n        -- Server version
+  , 'INCR/DECR'     // <number>\r\n                 -- Incr response
+  , '+OK'           // +OK\r\n                      -- In monitor mode (*g)
   // <number> <count>\r\n                           -- Size stat response
+
+  // <unix.unix> <command> <key> <flags> <expire> [bytes] [value]
+  // - This is the format for the monitor response, bytes and value are only set
+  //   when a storage command is issued
+
   // Ignoring SLAB reassignment, doesn't seem to be finished.
 ].forEach(function commanding(command, i) {
   Parser.responses[i] = command;
@@ -405,6 +415,11 @@ Parser.prototype.parse = function parse() {
       } else {
         // @TODO handle size response
       }
+    } else if (charCode === 75) {
+      // KEY (charCode 75 === 'KEY'):
+      //
+      // KEY <bytes> key response, so we know which keys are set in memcached
+      // @TODO implement this
     } else {
       // UNKNOWN RESPONSE, something went really fucked up wrong, we should
       // probably destroy the parser.
