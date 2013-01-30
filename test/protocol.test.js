@@ -576,6 +576,56 @@ describe('memcached-stream', function () {
         memcached.write(data+ 'BANANANANA');
       });
     });
+
+    describe('INVALID response', function () {
+      var data = 'END\r\nHELLO WORLD\r\n';
+
+      it('emits an error event when it encounters invalid data', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('error', function (err) {
+          expect(err).to.be.instanceOf(Error);
+          expect(err.code).to.equal('EPARSERFUCKUPLULZ');
+          expect(err.data).to.equal('HELLO WORLD\r\n');
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
+        });
+
+        memcached.write(data);
+      });
+
+      it('correctly cleans the queue', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('error', function (err) {
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
+        });
+
+        memcached.write(data+ 'BANANANANA');
+      });
+
+      it('destroys the parser', function (done) {
+        var memcached = new Parser();
+
+        memcached.on('error', function (err) {
+          expect(memcached.writable).to.equal(false);
+          expect(memcached.destroyed).to.equal(true);
+
+          done();
+        });
+
+        memcached.write(data);
+      });
+    });
   });
 
   describe('extendend protocol support', function () {

@@ -435,11 +435,11 @@ Parser.prototype.parse = function parse() {
       // UNKNOWN RESPONSE, something went really fucked up wrong, we should
       // probably destroy the parser.
       err = new Error('Unknown response');
-      err.CODE = 'EPARSERFUCKUPLULZ';
+      err.code = 'EPARSERFUCKUPLULZ';
       err.data = data.slice(i);
 
-      // DIE
-      this.destroy(err);
+      // DIE, and don't continue parsing
+      return this.destroy(err);
     }
   }
 
