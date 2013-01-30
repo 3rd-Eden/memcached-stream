@@ -122,7 +122,7 @@ Parser.prototype.parse = function parse() {
     , length;           // Stores the total message length which is added to the
                         // cursor and subtracted from the bytesRemaining
 
-  for (var i = 0, l = data.length; i < l; i++) {
+  for (var i = 0, l = data.length; i < l;) {
     charCode = data.charCodeAt(i);
     rn = data.indexOf('\r\n', i);
 
@@ -149,7 +149,7 @@ Parser.prototype.parse = function parse() {
       this.emit('error:response', err);
 
       // command length + message length + separators
-      length = msg.length + 14;
+      length = msg.length + 15;
       i += length;
       bytesRemaining -= length;
     } else if (charCode === 68) {
@@ -158,8 +158,8 @@ Parser.prototype.parse = function parse() {
       // The they was successfully removed from the server.
       this.emit('response', 'DELETED', true);
 
-      i += 8;
-      bytesRemaining -= 8;
+      i += 9;
+      bytesRemaining -= 9;
     } else if (charCode === 69) {
       // END, ERROR, EXISTS (charCode 69 === E):
       //
@@ -175,8 +175,8 @@ Parser.prototype.parse = function parse() {
         // VALUE responses etc.
         this.emit('response', 'END', true);
 
-        i += 4;
-        bytesRemaining -= 4;
+        i += 5;
+        bytesRemaining -= 5;
       } else if (charCode === 88) {
         // EXISTS:
         //
@@ -184,8 +184,8 @@ Parser.prototype.parse = function parse() {
         // CAS value is expired.
         this.emit('response', 'EXISTS', false);
 
-        i += 7;
-        bytesRemaining -= 7;
+        i += 8;
+        bytesRemaining -= 8;
       } else {
         // ERROR:
         //
@@ -194,8 +194,8 @@ Parser.prototype.parse = function parse() {
         err.code = 'ERROR';
         this.emit('error:response', err);
 
-        i += 6;
-        bytesRemaining -= 6;
+        i += 7;
+        bytesRemaining -= 7;
       }
     } else if (charCode === 78) {
       // NOT_STORED, NOT_FOUND (charCode 78 === N):
@@ -212,8 +212,8 @@ Parser.prototype.parse = function parse() {
         // does not exist.
         this.emit('response', 'NOT_FOUND', false);
 
-        i += 10;
-        bytesRemaining -= 10;
+        i += 11;
+        bytesRemaining -= 11;
       } else {
         // NOT_STORED:
         //
@@ -221,8 +221,8 @@ Parser.prototype.parse = function parse() {
         // to pass the condition of a ADD or REPLACE command.
         this.emit('response', 'NOT_STORED', false);
 
-        i += 11;
-        bytesRemaining -= 11;
+        i += 12;
+        bytesRemaining -= 12;
       }
     } else if (charCode === 79) {
       // OK (charCode 79 === O):
@@ -230,8 +230,8 @@ Parser.prototype.parse = function parse() {
       // OKIDOKIE, we are going to do the thing you asked the server todo.
       this.emit('response', 'OK', true);
 
-      i += 3;
-      bytesRemaining -= 3;
+      i += 4;
+      bytesRemaining -= 4;
     } else if (charCode === 83) {
       // SERVER_ERROR, STAT, STORED (charCode 83 === S):
       //
@@ -250,7 +250,7 @@ Parser.prototype.parse = function parse() {
         this.emit('error:response', err);
 
         // command length + message length + separators
-        length = msg.length + 14;
+        length = msg.length + 15;
         i += length;
         bytesRemaining -= length;
       } else if (charCode === 79) {
@@ -259,8 +259,8 @@ Parser.prototype.parse = function parse() {
         // The data was stored successfully.
         this.emit('response', 'STORED', true);
 
-        i += 7;
-        bytesRemaining -= 7;
+        i += 8;
+        bytesRemaining -= 8;
       } else {
         // STAT:
         //
@@ -273,7 +273,7 @@ Parser.prototype.parse = function parse() {
 
         this.emit('response', 'STAT', msg, val);
 
-        length = msg.length + val.length + 7;
+        length = msg.length + val.length + 8;
         i += length;
         bytesRemaining -= length;
       }
@@ -283,8 +283,8 @@ Parser.prototype.parse = function parse() {
       // Updated the expiry of the given key.
       this.emit('response', 'TOUCHED', true);
 
-      i += 8;
-      bytesRemaining -= 8;
+      i += 9;
+      bytesRemaining -= 9;
     } else if (charCode === 86) {
       // VALUE, VERSION (charCode 86 === V):
       //
@@ -384,8 +384,8 @@ Parser.prototype.parse = function parse() {
         this.emit('response', 'VALUE', value, flags, cas, key);
 
         // + value length & closing \r\n
-        i += value.length + 1;
-        bytesRemaining -= bytes + 1;
+        i += value.length + 2;
+        bytesRemaining -= bytes + 2;
       } else {
         // VERSION:
         //
@@ -395,7 +395,7 @@ Parser.prototype.parse = function parse() {
         this.emit('response', 'VERSION', msg);
 
         // message length + command + \r\n
-        length = msg.length + 9;
+        length = msg.length + 10;
         i += length;
         bytesRemaining -= length;
       }
@@ -409,7 +409,7 @@ Parser.prototype.parse = function parse() {
       if (+msg) {
         this.emit('response', 'INCR/DECR', +msg);
 
-        length = msg.length + 1;
+        length = msg.length + 2;
         i += length;
         bytesRemaining -= length;
       } else {
@@ -429,8 +429,8 @@ Parser.prototype.parse = function parse() {
 
       this.emit('response', 'KEY', msg);
 
-      i += val.length + msg.length + 6;
-      bytesRemaining -= +val + val.length + 6;
+      i += val.length + msg.length + 7;
+      bytesRemaining -= +val + val.length + 7;
     } else {
       // UNKNOWN RESPONSE, something went really fucked up wrong, we should
       // probably destroy the parser.
