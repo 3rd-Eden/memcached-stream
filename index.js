@@ -52,22 +52,22 @@ Parser.prototype.__proto__ = Stream.prototype;
  */
 Parser.responses = Object.create(null);
 [
-    'CLIENT_ERROR'  // CLIENT_ERROR <error> \r\n    -- Protocol failed
-  , 'DELETED'       // DELETED\r\n                  -- Value deleted
-  , 'END'           // END\r\n                      -- Done
-  , 'KEY'           // KEY <bytes> <key>            -- Key response (*g)
-  , 'ERROR'         // ERROR\r\n                    -- Command not known
-  , 'EXISTS'        // EXISTS\r\n                   -- Item has been modified
-  , 'NOT_FOUND'     // NOT_FOUND\r\n                -- OK, but item not found
-  , 'NOT_STORED'    // NOT_STORED\r\n               -- OK, but not stored
-  , 'OK'            // OK\r\n                       -- OK
-  , 'SERVER_ERROR'  // SERVER_ERROR <error> \r\n    -- Server fuckup
-  , 'STAT'          // STAT <name> <value>\r\n      -- Server stats
-  , 'STORED'        // STORED\r\n                   -- Saved response
-  , 'TOUCHED'       // TOUCHED\r\n                  -- That tickles
-  , 'VALUE'         // VALUE <key> <flags> <bytes> [<cas unique>]\r\n -- ok
-  , 'VERSION'       // VERSION <version>\r\n        -- Server version
-  , 'INCR/DECR'     // <number>\r\n                 -- Incr response
+    'CLIENT_ERROR'  //  0 CLIENT_ERROR <error> \r\n    -- Protocol failed
+  , 'DELETED'       //  1 DELETED\r\n                  -- Value deleted
+  , 'END'           //  2 END\r\n                      -- Done
+  , 'KEY'           //  3 KEY <bytes> <key>            -- Key response (*g)
+  , 'ERROR'         //  4 ERROR\r\n                    -- Command not known
+  , 'EXISTS'        //  5 EXISTS\r\n                   -- Item has been modified
+  , 'NOT_FOUND'     //  6 NOT_FOUND\r\n                -- OK, but item not found
+  , 'NOT_STORED'    //  7 NOT_STORED\r\n               -- OK, but not stored
+  , 'OK'            //  8 OK\r\n                       -- OK
+  , 'SERVER_ERROR'  //  9 SERVER_ERROR <error> \r\n    -- Server fuckup
+  , 'STAT'          // 10 STAT <name> <value>\r\n      -- Server stats
+  , 'STORED'        // 11 STORED\r\n                   -- Saved response
+  , 'TOUCHED'       // 12 TOUCHED\r\n                  -- That tickles
+  , 'VALUE'         // 13 VALUE <key> <flags> <bytes> [<cas unique>]\r\n -- ok
+  , 'VERSION'       // 14 VERSION <version>\r\n        -- Server version
+  , 'INCR/DECR'     // 15 <number>\r\n                 -- Incr response
   , '+OK'           // +OK\r\n                      -- In monitor mode (*g)
   // <number> <count>\r\n                           -- Size stat response
 
@@ -113,7 +113,8 @@ Parser.prototype.write = function write(data) {
  * @api private
  */
 Parser.prototype.parse = function parse() {
-  var data = this.queue
+  var responses = Parser.responses
+    , data = this.queue
     , bytesRemaining = Buffer.byteLength(data)
     , charCode          // Stores the current cursor position
     , rn                // Found a \r\n
@@ -145,7 +146,7 @@ Parser.prototype.parse = function parse() {
       msg = data.slice(i + 13, rn);
 
       err = new Error(msg);
-      err.code = 'CLIENT_ERROR';
+      err.code = responses[0];
       this.emit('error:response', err);
 
       // command length + message length + separators
@@ -156,7 +157,7 @@ Parser.prototype.parse = function parse() {
       // DELETED (charCode 68 === D):
       //
       // The they was successfully removed from the server.
-      this.emit('response', 'DELETED', true);
+      this.emit('response', responses[1], true);
 
       i += 9;
       bytesRemaining -= 9;
@@ -173,7 +174,7 @@ Parser.prototype.parse = function parse() {
         // The END command indicates that all data has been send and that the
         // response for the command has ended. This is used for multiple STAT or
         // VALUE responses etc.
-        this.emit('response', 'END', true);
+        this.emit('response', responses[2], true);
 
         i += 5;
         bytesRemaining -= 5;
@@ -182,7 +183,7 @@ Parser.prototype.parse = function parse() {
         //
         // The item that you tried to store already exists on server and it's
         // CAS value is expired.
-        this.emit('response', 'EXISTS', false);
+        this.emit('response', responses[5], false);
 
         i += 8;
         bytesRemaining -= 8;
@@ -191,7 +192,7 @@ Parser.prototype.parse = function parse() {
         //
         // The command that was send by the client is not known by the server.
         err = new Error('Command not known by server');
-        err.code = 'ERROR';
+        err.code = responses[4];
         this.emit('error:response', err);
 
         i += 7;
@@ -210,7 +211,7 @@ Parser.prototype.parse = function parse() {
         //
         // The item that the client is trying to store while using a CAS value
         // does not exist.
-        this.emit('response', 'NOT_FOUND', false);
+        this.emit('response', responses[6], false);
 
         i += 11;
         bytesRemaining -= 11;
@@ -219,7 +220,7 @@ Parser.prototype.parse = function parse() {
         //
         // The data was not stored, this is not due to a failure but it failed
         // to pass the condition of a ADD or REPLACE command.
-        this.emit('response', 'NOT_STORED', false);
+        this.emit('response', responses[7], false);
 
         i += 12;
         bytesRemaining -= 12;
@@ -228,7 +229,7 @@ Parser.prototype.parse = function parse() {
       // OK (charCode 79 === O):
       //
       // OKIDOKIE, we are going to do the thing you asked the server todo.
-      this.emit('response', 'OK', true);
+      this.emit('response', responses[8], true);
 
       i += 4;
       bytesRemaining -= 4;
@@ -246,7 +247,7 @@ Parser.prototype.parse = function parse() {
         msg = data.slice(i + 13, rn);
 
         err = new Error(msg);
-        err.code = 'SERVER_ERROR';
+        err.code = responses[9];
         this.emit('error:response', err);
 
         // command length + message length + separators
@@ -257,7 +258,7 @@ Parser.prototype.parse = function parse() {
         // STORED:
         //
         // The data was stored successfully.
-        this.emit('response', 'STORED', true);
+        this.emit('response', responses[11], true);
 
         i += 8;
         bytesRemaining -= 8;
@@ -271,7 +272,7 @@ Parser.prototype.parse = function parse() {
         msg = data.slice(i + 5, pos);
         val = data.slice(pos + 1, rn);
 
-        this.emit('response', 'STAT', msg, val);
+        this.emit('response', responses[10], msg, val);
 
         length = msg.length + val.length + 8;
         i += length;
@@ -281,7 +282,7 @@ Parser.prototype.parse = function parse() {
       // TOUCHED (charCode 84 === T):
       //
       // Updated the expiry of the given key.
-      this.emit('response', 'TOUCHED', true);
+      this.emit('response', responses[12], true);
 
       i += 9;
       bytesRemaining -= 9;
@@ -381,7 +382,7 @@ Parser.prototype.parse = function parse() {
         // doing this atm so we can add the value's length to the cursor (i).
         value = value.toString();
 
-        this.emit('response', 'VALUE', value, flags, cas, key);
+        this.emit('response', responses[13], value, flags, cas, key);
 
         // + value length & closing \r\n
         i += value.length + 2;
@@ -392,7 +393,7 @@ Parser.prototype.parse = function parse() {
         // The server version, usually semver formatted but it can also contain
         // alpha chars such as beta, dev or pewpew.
         msg = data.slice(i + 8, rn);
-        this.emit('response', 'VERSION', msg);
+        this.emit('response', responses[14], msg);
 
         // message length + command + \r\n
         length = msg.length + 10;
@@ -407,7 +408,7 @@ Parser.prototype.parse = function parse() {
       msg = data.slice(i, rn);
 
       if (+msg) {
-        this.emit('response', 'INCR/DECR', +msg);
+        this.emit('response', responses[15], +msg);
 
         length = msg.length + 2;
         i += length;
@@ -427,7 +428,7 @@ Parser.prototype.parse = function parse() {
       val = data.slice(i + 4, pos);
       msg = data.slice(pos + 1, rn);
 
-      this.emit('response', 'KEY', msg);
+      this.emit('response', responses[3], msg);
 
       i += val.length + msg.length + 7;
       bytesRemaining -= +val + val.length + 7;

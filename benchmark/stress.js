@@ -6,7 +6,7 @@ var parser = new (require('../').Parser)()
 //
 // Stress test parameters
 //
-var NR_OF_RUNS = 100;
+var NR_OF_RUNS = 1000;
 
 var start = Date.now();
 
