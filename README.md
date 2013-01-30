@@ -64,30 +64,94 @@ var parser = new Parser();
 stream.pipe(parser);
 ```
 
-#### Listening for results
+#### Adding optional flag parsers
 
-Now that we attached the parser to the stream we can start receiving responses
-from the memcached protocol enabled server:
+Memcached allows you to store 16 / 32 bits unsigned integers as flags when you
+store your response. This is mostly used to indicate what kind of data is
+actually stored.
+
+The flag function takes 2 arguments:
+
+- flag, an unsigned 16 or 32 bit integer (depends on your memcached version)
+- parser, an function that receives 2 arguments:
+  - str, the string representation of the value
+  - buffer, the buffer representation of the value.
+  
+_Please note that this is a sync call._
+
+```js
+// a JSON parser for when the 1 flag is used
+parser.flag(1, function parse(str, buffer) {
+  return JSON.parse(str);
+});
+```
+
+#### Listening for the parser's events
+
+The parser emit's a couple of events that you should be listening on:
+
+- **response** The parser has received a new response from the server
+- **error:response** The parser received an Error response from the server
+- **error** The parser is in a horrible state, and should be killed.
+
+##### The response event
+
+The first 2 arguments of this are the most important. The first argument
+`command` is the response command that was returned from the server. It would be
+VALUE, END, OK, NOT_STORED etc. The second argument is the value of the
+response. This is the same for every response. Most responses will be a
+`Boolean` value. This will indicate if the command indicates success or failure.
+
+Non `boolean` responses should probably be queued until you receive an `END`
+command. This only applies for VALUE, STAT and KEY. These commands also receive
+a couple of extra arguments.
+
+- **VALUE**
+  - command, command name
+  - value, the value
+  - flags, the flags of the response
+  - cas, an optional cas key
+  - key, the key of the value
+- **STAT**
+  - command, command name
+  - key, the stat key
+  - value, the stat value
+
+The **KEY** response here is the odd ball, where it's value is key. Please note
+that the KEY response isn't offically support by memcached.
 
 ```js
 parser.on('response', function response(command, ..args) {
   // command is the response type, VALUE, END, STORED etc.
 });
+```
 
+##### The error:response event
+
+The error response is still a response from the server, this is a sepeare event
+as it will recieve an Error argument. This error argument you can easily pass to
+your callback functions. The `error:response` is only called for known error
+responses from a memcached server such as ERROR, CLIENT_ERROR and SERVER_ERROR.
+
+```js
 parser.on('error:response', function error(err) {
   // err.code is the actual response type
 });
 ```
 
-#### Unknown server responses
+##### The error event
 
 In addition to these events, we also have an `error` event that gets emitted
 when we receive an unknown response. When this happens the parser is destroyed
 immediately as we have no idea in what state our parser is in.
 
 ```js
-parser.on('error', function (err) {
-  // You should kill the connection and re construct the parser here.
+parser.on('error', function error(err) {
+  // optionally you can check the cause of the error, if it's due to a parser
+  // failure it will have a `code` property
+  parser.destroy();
+
+  // rebuild the parser and pipe it the connection again
 });
 ```
 
@@ -95,9 +159,14 @@ parser.on('error', function (err) {
 
 Once you are done with parsing you can terminate it by calling:
 
-
 ```js
 parser.end();
+```
+
+Or you can completely destroy the parser by calling:
+
+```js
+parser.destroy();
 ```
 
 ### Contributing
