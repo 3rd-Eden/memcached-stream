@@ -7,6 +7,7 @@ var parser = require('../index.js').createStream()
       , 'replies': [
             'CLIENT_ERROR'
           , 'DELETED'
+          , 'KEY'
           , 'END'
           , 'ERROR'
           , 'EXISTS'

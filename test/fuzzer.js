@@ -42,7 +42,7 @@ function Fuzzer(options) {
   this.config.set('responses', 1000);           // the amount of responses to send
   this.config.set('unique values', 100);        // unique VALUE responses (stored in mem)
   this.config.set('auto close', true);          // automatically close the connection
-  this.config.set('write stdout', true);        // should we write responses to stdout
+  this.config.set('write stdout', false);       // should we write responses to stdout
   this.config.set('replies'
     , Object.keys(Fuzzer.responders)            // responses we want to receive
   );
@@ -142,6 +142,7 @@ Fuzzer.prototype.random = function random(socket, callback) {
     // every line it receives is parsed correctly.
     self.emit('fuzzer', reply, line);
     socket.write(line, callback);
+
     if (stdout) {
       process.stdout.write(line);
     }
@@ -179,7 +180,7 @@ Fuzzer.responders.CLIENT_ERROR = function fabricate(config, done) {
   done(undefined, 'CLIENT_ERROR '+ errors[ Math.floor(Math.random() * errors.length) ] +'\r\n');
 };
 
-Fuzzer.responders.SERVER_ERROR = function fabricate(config, done){
+Fuzzer.responders.SERVER_ERROR = function fabricate(config, done) {
   // do SERVER_ERROR <error> \r\n
   var errors = [
       'Unhandled storage type.'
@@ -198,7 +199,19 @@ Fuzzer.responders.SERVER_ERROR = function fabricate(config, done){
   done(undefined, 'SERVER_ERROR '+ errors[ Math.floor(Math.random() * errors.length) ] +'\r\n');
 };
 
-Fuzzer.responders.STAT = function fabricate(config, done){
+Fuzzer.responders.KEY = function fabricate(config, done) {
+  var keysize = Math.floor(Math.random() * config.get('max key size'))
+    , key = (g.string() + g.string() + g.string()).replace(/\s/g, '').slice(0, keysize)
+    , bytes = Buffer.byteLength(key);
+
+  done(undefined, 'KEY '+ bytes +' '+ key +'\r\nEND\r\n');
+
+  // we end the call with and extra END, so emit that
+  this.socket.iterations++;
+  this.fuzzer.emit('fuzzer', 'END', 'END\r\n');
+};
+
+Fuzzer.responders.STAT = function fabricate(config, done) {
   var STAT = [
       'STAT pid '+ g.size()
     , 'STAT uptime '+ g.size()

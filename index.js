@@ -269,7 +269,7 @@ Parser.prototype.parse = function parse() {
           , val;
 
         msg = data.slice(i + 5, pos);
-        val = data.slice(i + 6 + msg.length, rn);
+        val = data.slice(pos + 1, rn);
 
         this.emit('response', 'STAT', msg, val);
 
@@ -419,7 +419,18 @@ Parser.prototype.parse = function parse() {
       // KEY (charCode 75 === 'KEY'):
       //
       // KEY <bytes> key response, so we know which keys are set in memcached
-      // @TODO implement this
+      // while the response sets bytes, we can just scan for the ending \r\n and
+      // get the key name.
+      var pos = data.indexOf(' ', i + 4)
+        , val;
+
+      val = data.slice(i + 4, pos);
+      msg = data.slice(pos + 1, rn);
+
+      this.emit('response', 'KEY', msg);
+
+      i += val.length + msg.length + 6;
+      bytesRemaining -= +val + val.length + 6;
     } else {
       // UNKNOWN RESPONSE, something went really fucked up wrong, we should
       // probably destroy the parser.

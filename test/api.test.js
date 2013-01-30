@@ -41,7 +41,7 @@ describe('memcached-stream', function () {
       return;
 
       it('pipes to a net.Connection', function (done) {
-        var server = fuzzy.createServer({ responses: 100 })
+        var server = fuzzy.createServer({ 'responses': 100, 'write stdout': false })
           , memcached = new Parser()
           , port = portnumbers
           , responses = 0;

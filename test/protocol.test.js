@@ -577,4 +577,44 @@ describe('memcached-stream', function () {
       });
     });
   });
+
+  describe('extendend protocol support', function () {
+    describe('garantiadata.com', function () {
+      describe('KEYS', function () {
+        var data = 'KEY 4 four\r\n';
+
+        it('emits an `response` event when encountered', function (done) {
+          var memcached = new Parser();
+
+          memcached.on('response', function (command, data) {
+            expect(command).to.equal('KEY');
+            expect(data).to.equal('four');
+
+            // should clear the cache
+            process.nextTick(function () {
+              expect(memcached.queue).to.equal('');
+
+              done();
+            });
+          });
+
+          memcached.write(data);
+        });
+
+        it('correctly cleans the queue', function (done) {
+          var memcached = new Parser();
+
+          memcached.on('response', function (err) {
+            process.nextTick(function () {
+              expect(memcached.queue).to.equal('BANANANANA');
+
+              done();
+            });
+          });
+
+          memcached.write(data+ 'BANANANANA');
+        });
+      });
+    });
+  });
 });
