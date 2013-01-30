@@ -33,6 +33,13 @@ function Parser(options) {
   // Parser related properties.
   this.queue = '';    // This is where the server responses are parsed from
   this.expecting = 0; // How much bytes we expect to receive before parse a result
+
+  // Flags support
+  this.flags = Object.create(null);
+
+  if ('flags' in options) Object.keys(options.flags).forEach(function setFlag(flag) {
+    this.flag(flag, options.flags[flag]);
+  }, this);
 }
 
 /**
@@ -81,6 +88,19 @@ Parser.responses = Object.create(null);
 });
 
 /**
+ * Register a new VALUE parser when the response has the given integer.
+ *
+ * @param {String|Number} int unsigned 16/32bit integer
+ * @param {Function} parser function that parses the result set
+ */
+Parser.prototype.flag = function flag(int, parser) {
+  if (+int > 4294967295 || +int < 0) throw new Error('Integer must be a 16/32bit unsigned integer');
+  if ('function' !== typeof parser) throw new Error('The parser should be a function');
+
+  this.flags[int.toString()] = parser;
+};
+
+/**
  * Receives data from a Stream, we assume that the stream has
  * `setEncoding('utf8')` so we are sure that we receive strings as arguments and
  * don't have to worry about receiving a half UTF-8 character.
@@ -104,6 +124,7 @@ Parser.prototype.write = function write(data) {
     this.expected = 0;
     this.parse();
   }
+
   return true;
 };
 
@@ -115,12 +136,13 @@ Parser.prototype.write = function write(data) {
 Parser.prototype.parse = function parse() {
   var data = this.queue
     , bytesRemaining = Buffer.byteLength(data)
-    , charCode          // Stores the current cursor position
-    , rn                // Found a \r\n
-    , msg               // Stores the response
-    , err               // Stores the potential error message
-    , length;           // Stores the total message length which is added to the
-                        // cursor and subtracted from the bytesRemaining
+    , parsers = this.flags  // Custom VALUE parsers
+    , charCode              // Stores the current cursor position
+    , rn                    // Found a \r\n
+    , msg                   // Stores the response
+    , err                   // Stores the potential error message
+    , length;               // Stores the total message length which is added to the
+                            // cursor and subtracted from the bytesRemaining
 
   for (var i = 0, l = data.length; i < l;) {
     charCode = data.charCodeAt(i);
@@ -379,12 +401,16 @@ Parser.prototype.parse = function parse() {
         // decisions should be made by the client, not the parser.
         // @TODO we might not even need to change it to a string, as we are only
         // doing this atm so we can add the value's length to the cursor (i).
-        value = value.toString();
+        msg = value.toString();
+
+        // Check if we have a custom parser for the given flag
+        if (flags in parsers) value = parsers[flags](msg, value);
+        else value = msg;
 
         this.emit('response', 'VALUE', value, flags, cas, key);
 
         // + value length & closing \r\n
-        i += value.length + 2;
+        i += msg.length + 2;
         bytesRemaining -= bytes + 2;
       } else {
         // VERSION:

@@ -42,18 +42,29 @@ The `--save` flag tells NPM to automatically add the package to your
 
 ### API
 
+All the examples assume the following boot strapped code:
+
 ```js
 var Parser = require('memcached-stream');
 ```
 
-Adding the parser to a stream, in this example we assume that `stream` is a
-valid TCP connection that already had `setEncoding('utf-8')` applied to it.
+And we assume that the `stream` variable is a valid TCP connection that already
+had `setEncoding('utf-8')` applied to it so it will not terminate UTF-8 chars.
+
+#### Initializing the parser
+
+The parser inherits from the Node.js Stream interface. This allows you to easily
+attach the parser to a connection by using the `Stream#pipe` method which is
+available on every Stream interface in node. The best thing about using the pipe
+method is that it takes care of all the flow control for us.
 
 ```js
 var parser = new Parser();
 
 stream.pipe(parser);
 ```
+
+#### Listening for results
 
 Now that we attached the parser to the stream we can start receiving responses
 from the memcached protocol enabled server:
@@ -68,6 +79,8 @@ parser.on('error:response', function error(err) {
 });
 ```
 
+#### Unknown server responses
+
 In addition to these events, we also have an `error` event that gets emitted
 when we receive an unknown response. When this happens the parser is destroyed
 immediately as we have no idea in what state our parser is in.
@@ -78,7 +91,10 @@ parser.on('error', function (err) {
 });
 ```
 
+#### Finishing it up
+
 Once you are done with parsing you can terminate it by calling:
+
 
 ```js
 parser.end();
