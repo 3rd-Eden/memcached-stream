@@ -1,5 +1,21 @@
 # memcached-stream [![Build Status](https://travis-ci.org/3rd-Eden/memcached-stream.png?branch=master)](https://travis-ci.org/3rd-Eden/memcached-stream)
 
+## Table of Contents
+
+- Introduction
+- [Why ASCII][1]
+- [Installation][2]
+- [API][3]
+  - [Initializing the parser][3.1]
+  - [Adding optional flag parsers][3.2]
+  - [Listening for the parser's events][3.3]
+    - [The response event][3.3.1]
+    - [The error:response event][3.3.2]
+    - [The error event][3.3.3]
+  - [Finishing it up][3.4]
+- [Contributing][4]
+- [License][5]
+
 Memcached-stream is a streaming [Memcached ASCII protocol][ascii] parser for
 Node.js. The module is build with performance in mind and features an extensive
 micro benchmark suite that was used to research the best way to parse the stream
@@ -11,7 +27,7 @@ communicate such as:
 - Couchbase, Database
 - MySQL InnoDB, Database
 - Kestrel, Message Queue
-- darner, Message Queue
+- Darner, Message Queue
 
 The parser has been build on top of the Node.js stream interface so it can take
 advantage of the `Stream#pipe` method to work it's parsing magic. The parser
@@ -25,9 +41,6 @@ The reason that I have chosen to support the ASCII protocol is that its easier
 to debug. This might sound silly to you, but being able to see what is actually
 being send over the network in a human readable format is priceless when you
 have to debug something in production.
-
-[memcached]: /3rd-Eden/node-memcached
-[ascii]: https://github.com/memcached/memcached/blob/master/doc/protocol.txt
 
 ### Installation
 
@@ -176,3 +189,19 @@ Please see the CONTRIBUTING.md
 ### LICENSE
 
 MIT
+
+[1]: #why-ascii
+[2]: #installation
+[3]: #api
+[3.1]: #initializing-the-parser
+[3.2]: #adding-optional-flag-parsers
+[3.3]: #listening-for-the-parsers-events
+[3.3.1]: #the-response-event
+[3.3.2]: #the-errorresponse-event
+[3.3.3]: #the-error-event
+[3.4]: #finishing-it-up
+[4]: /3rd-Eden/memcached-stream/blob/master/CONTRIBUTING.md
+[5]: #license
+
+[memcached]: /3rd-Eden/node-memcached
+[ascii]: https://github.com/memcached/memcached/blob/master/doc/protocol.txt
