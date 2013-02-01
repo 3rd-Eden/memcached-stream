@@ -115,14 +115,15 @@ Parser.prototype.flag = function flag(int, parser) {
  */
 Parser.prototype.write = function write(data) {
   var length = (this.queue += data).length
-    , expected = this.expected;
+    , expecting = this.expecting
+    , bytes;
 
   // Only parse the data when actually have enough data to parse the complete
   // response, this saves a couple parse calls for large values that stream in
   // their values.
-  if (!(length < expected || Buffer.byteLength(this.queue) < length)) {
-    this.expected = 0;
-    this.parse();
+  if (length >= expecting || (bytes = Buffer.byteLength(this.queue)) >= expecting) {
+    this.expecting = 0;
+    this.parse(bytes);
   }
 
   return true;
@@ -131,11 +132,12 @@ Parser.prototype.write = function write(data) {
 /**
  * Parse the memcached protocol.
  *
+ * @param {Number} bytes [optional] bytelength of the queue
  * @api private
  */
-Parser.prototype.parse = function parse() {
+Parser.prototype.parse = function parse(bytes) {
   var data = this.queue
-    , bytesRemaining = Buffer.byteLength(data)
+    , bytesRemaining = bytes || Buffer.byteLength(data)
     , parsers = this.flags  // Custom VALUE parsers
     , charCode              // Stores the current cursor position
     , rn                    // Found a \r\n

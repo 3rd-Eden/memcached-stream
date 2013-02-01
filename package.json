@@ -25,6 +25,6 @@
     "devnull": "0.0.x",
     "mocha": "1.8.x",
     "chai": "1.4.x",
-    "garbage": "0.0.0"
+    "memcached-fuzzer": "0.0.0"
   }
 }

@@ -20,6 +20,10 @@ describe('memcached-stream', function () {
     expect(stream.createStream()).to.be.instanceOf(Parser);
   });
 
+  it('inherits from the Stream interface', function () {
+    expect(new Parser).to.be.instanceOf(require('stream'));
+  });
+
   describe('Parser', function () {
     describe('@constructing', function () {
       it('constructs without any errors', function () {
@@ -65,6 +69,25 @@ describe('memcached-stream', function () {
         var memcached = new Parser();
 
         expect(memcached.write('END\r\n')).to.equal(true);
+      });
+
+      it('should only parse data when the expected amount of bytes is reached', function (done) {
+        var memcached = new Parser();
+
+        // @NOTE this is a private property!
+        memcached.expecting = 1000;
+
+        memcached.on('response', function () {
+          done(new Error('I should not parse the result'));
+        }).write('END\r\n');
+
+        memcached = new Parser();
+
+        memcached.expecting = 20;
+        memcached.on('response', function (command) {
+          expect(command).to.equal('KEY');
+          done();
+        }).write('KEY 12 победы\r\n');
       });
     });
 
