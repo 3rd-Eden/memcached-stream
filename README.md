@@ -12,7 +12,8 @@
     - [The response event][3.3.1]
     - [The error:response event][3.3.2]
     - [The error event][3.3.3]
-  - [Finishing it up][3.4]
+  - [Resetting the parsers internal state][3.4]
+  - [Finishing it up][3.5]
 - [Contributing][4]
 - [License][5]
 
@@ -168,6 +169,20 @@ parser.on('error', function error(err) {
 });
 ```
 
+#### Resetting the parsers internal state
+
+To make it possible to re-use parsers, theres a reset method that will reset the
+internals back to the same state as it as when it was freshly initialized.
+Please note that the reset method does not remove the assigned event listeners.
+
+```js
+// reset internals
+parser.reset();
+
+// also nuke the eventListeners
+parser.removeAllListeners();
+```
+
 #### Finishing it up
 
 Once you are done with parsing you can terminate it by calling:
@@ -199,6 +214,7 @@ MIT
 [3.3.1]: #the-response-event
 [3.3.2]: #the-errorresponse-event
 [3.3.3]: #the-error-event
+[3.4]: #resetting-the-parsers-internal-state
 [3.4]: #finishing-it-up
 [4]: /3rd-Eden/memcached-stream/blob/master/CONTRIBUTING.md
 [5]: #license
