@@ -98,6 +98,17 @@ Parser.prototype.flag = function flag(int, parser) {
   if ('function' !== typeof parser) throw new Error('The parser should be a function');
 
   this.flags[int.toString()] = parser;
+  return this;
+};
+
+/**
+ * Reset the internal back to their original values.
+ *
+ * @api public
+ */
+Parser.prototype.reset = function reset() {
+  this.expecting = 0;
+  this.queue = '';
 };
 
 /**
@@ -327,13 +338,13 @@ Parser.prototype.parse = function parse(bytes) {
         // get the char count and not the actual bytes. Pure Buffer parsing
         // might be an option for some people, but it's a lot of switching
         // between C++ calls vs regular optimized JavaScript shizzle.
-        var start = i // Store our starting point, so we can reset the cursor
-          , hascas    // Do we have a CAS response
-          , value     // Stored the value buffer
-          , bytes     // The amount of bytes
-          , flags     // The flags that were stored with the value
-          , key       // Stores key
-          , cas;      // Stores the CAS value
+        var start = i     // Store our starting point, so we can reset the cursor
+          , hascas        // Do we have a CAS response
+          , value         // Stored the value buffer
+          , bytes         // The amount of bytes
+          , flags         // The flags that were stored with the value
+          , key           // Stores key
+          , cas;          // Stores the CAS value
 
         // @TODO length folding just like we do in #write
         // @TODO test inline var statement vs outside loop var statement
@@ -368,17 +379,6 @@ Parser.prototype.parse = function parse(bytes) {
         i += length;
         bytesRemaining -= length;
 
-        // Now that we know how much bytes we should expect to have all the
-        // content or if we need to wait and buffer more.
-        bytes = +bytes;
-        if (bytes >= bytesRemaining) {
-          // Reset the cursor to the start of the command so the parsed data is
-          // removed from the queue when we leave the loop.
-          i = start;
-          this.expecting = bytes;
-          break;
-        }
-
         // The CAS value is optionally.
         if (hascas) {
           cas = data.slice(i, rn);
@@ -389,6 +389,17 @@ Parser.prototype.parse = function parse(bytes) {
         } else {
           i += 1;
           bytesRemaining -= 1;
+        }
+
+        // Now that we know how much bytes we should expect to have all the
+        // content or if we need to wait and buffer more.
+        bytes = +bytes;
+        if (bytes >= bytesRemaining) {
+          // Reset the cursor to the start of the command so the parsed data is
+          // removed from the queue when we leave the loop.
+          this.expecting = bytes + Buffer.byteLength(data.slice(start, i)) + 2;
+          i = start;
+          break;
         }
 
         // Because we are working with binary data here, we need to allocate

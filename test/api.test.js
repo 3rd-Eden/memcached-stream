@@ -56,7 +56,7 @@ describe('memcached-stream', function () {
         expect(memcached.flag.bind(memcached, 2)).to.not.throw(/unsigned/);
       });
 
-      it('only only accepts functions as parsers', function () {
+      it('only accepts functions as parsers', function () {
         var memcached = new Parser();
 
         expect(memcached.flag.bind(memcached, 1, 1)).to.throw(/function/);
@@ -131,6 +131,54 @@ describe('memcached-stream', function () {
         });
 
         memcached.write('VALUE f 2 26\r\n{"foo":"bar","bar":121313}\r\n');
+      });
+
+      it('wants to buffer more data if the queue doesnt contain \\r\\n', function (done) {
+        var memcached = new Parser();
+
+        expect(memcached.expecting).to.equal(0);
+        memcached.write('END');
+
+        expect(memcached.expecting).to.equal(5);
+
+        memcached.on('response', function response(command) {
+          expect(command).to.equal('END');
+          expect(memcached.expecting).to.equal(0);
+
+          setTimeout(function timeout() {
+            expect(memcached.queue).to.equal('');
+            done();
+          }, 10);
+        });
+
+        memcached.write('\r\n');
+      });
+
+      it('should buffer on partial VALUE responses', function (done) {
+        var memcached = new Parser()
+          , data = 'VALUE füübar 1 60 9\r\nпривет мир, '
+          , leftover = 'Memcached и nodejs для победы\r\n';
+
+        memcached.write(data);
+        expect(memcached.queue).to.equal(data);
+        expect(memcached.expecting).to.equal(85);
+
+        memcached.on('response', function (command, value, flags, cas, key) {
+          expect(command).to.equal('VALUE');
+          expect(value).to.equal('привет мир, Memcached и nodejs для победы');
+          expect(flags).to.equal('1');
+          expect(cas).to.equal('9');
+          expect(key).to.equal('füübar');
+
+          // should clear the cache
+          process.nextTick(function () {
+            expect(memcached.queue).to.equal('');
+
+            done();
+          });
+        });
+
+        memcached.write(leftover);
       });
     });
   });
