@@ -170,8 +170,8 @@ Parser.prototype.parse = function parse(bytes) {
       break;
     }
 
-    if(i != 0) { bytesRemaining--; }
-     
+    if (i !== 0) bytesRemaining--;
+
     // @TODO Order this in order of importance
     // @TODO see if we can reduce the amount i += calls by setting rn value..
     if (charCode === 67) {
@@ -329,7 +329,7 @@ Parser.prototype.parse = function parse(bytes) {
       // yields enough specificity to determine the correct response.
       charCode = data.charCodeAt(i + 1);
 
-      if (charCode === 65) {       
+      if (charCode === 65) {
         // VALUE:
         //
         // This is where all the magic happens, value parsing is one if not THE
