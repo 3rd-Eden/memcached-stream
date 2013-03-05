@@ -157,7 +157,7 @@ Parser.prototype.parse = function parse(bytes) {
     , length;               // Stores the total message length which is added to the
                             // cursor and subtracted from the bytesRemaining
 
-  for (var i = 0, l = data.length; i < l;) {
+  for (var i = 0, l = data.length; i <= l;) {
     charCode = data.charCodeAt(i);
     rn = data.indexOf('\r\n', i);
 
@@ -170,6 +170,8 @@ Parser.prototype.parse = function parse(bytes) {
       break;
     }
 
+    if(i != 0) { bytesRemaining--; }
+     
     // @TODO Order this in order of importance
     // @TODO see if we can reduce the amount i += calls by setting rn value..
     if (charCode === 67) {
@@ -327,7 +329,7 @@ Parser.prototype.parse = function parse(bytes) {
       // yields enough specificity to determine the correct response.
       charCode = data.charCodeAt(i + 1);
 
-      if (charCode === 65) {
+      if (charCode === 65) {       
         // VALUE:
         //
         // This is where all the magic happens, value parsing is one if not THE
@@ -350,7 +352,7 @@ Parser.prototype.parse = function parse(bytes) {
         // @TODO test inline var statement vs outside loop var statement
         // @TODO test if saving the start is a good idea or just pointless
         i += 6;
-        bytesRemaining += 6;
+        bytesRemaining -= 6;
 
         // Key name
         key = data.slice(i, data.indexOf(' ', i));
