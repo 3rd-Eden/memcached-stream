@@ -16,6 +16,7 @@ var Stream = require('stream');
  * Options:
  * - {Boolean} readable, is this stream readable. Defaults to true.
  * - {Boolean} writable, is this stream writable. Defaults to true.
+ * - {Object} flags, flag parsers. Defaults to none.
  *
  * @constructor
  * @param {Object} options
@@ -37,9 +38,16 @@ function Parser(options) {
   // Flags support
   this.flags = Object.create(null);
 
+  // Iterate over the possible flag options and set them.
   if ('flags' in options) Object.keys(options.flags).forEach(function setFlag(flag) {
     this.flag(flag, options.flags[flag]);
   }, this);
+
+  // Detect when we are being piped so we can set the correct encoding on the
+  // source stream.
+  this.on('pipe', function pipe(source) {
+    if (!source._decoder) source.setEncoding('utf8');
+  });
 }
 
 /**
