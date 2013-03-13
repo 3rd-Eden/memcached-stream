@@ -178,8 +178,6 @@ Parser.prototype.parse = function parse(bytes) {
       break;
     }
 
-    if (i !== 0) bytesRemaining--;
-
     // @TODO Order this in order of importance
     // @TODO see if we can reduce the amount i += calls by setting rn value..
     if (charCode === 67) {
