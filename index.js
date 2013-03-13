@@ -402,7 +402,7 @@ Parser.prototype.parse = function parse(bytes) {
         // Now that we know how much bytes we should expect to have all the
         // content or if we need to wait and buffer more.
         bytes = +bytes;
-        if (bytes >= bytesRemaining) {
+        if (bytes > (bytesRemaining-2)) {
           // Reset the cursor to the start of the command so the parsed data is
           // removed from the queue when we leave the loop.
           this.expecting = bytes + Buffer.byteLength(data.slice(start, i)) + 2;
