@@ -165,7 +165,7 @@ Parser.prototype.parse = function parse(bytes) {
     , length;               // Stores the total message length which is added to the
                             // cursor and subtracted from the bytesRemaining
 
-  for (var i = 0, l = data.length; i <= l;) {
+  for (var i = 0, l = data.length; i < l;) {
     charCode = data.charCodeAt(i);
     rn = data.indexOf('\r\n', i);
 
