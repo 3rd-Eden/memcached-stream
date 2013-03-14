@@ -165,7 +165,7 @@ Parser.prototype.parse = new Function('bytes', [
   , "  , length;"               // Stores the total message length which is added to the
                                 // cursor and subtracted from the bytesRemaining
 
-  , "for (var i = 0, l = data.length; i <= l;) {"
+  , "for (var i = 0, l = data.length; i < l;) {"
   , "  charCode = data.charCodeAt(i);"
   , "  rn = data.indexOf('\\r\\n', i);"
 
@@ -402,7 +402,9 @@ Parser.prototype.parse = new Function('bytes', [
            // Now that we know how much bytes we should expect to have all the
            // content or if we need to wait and buffer more.
   , "      bytes = +bytes;"
-  , "      if (bytes >= bytesRemaining) {"
+
+           // Add 2 for the \n\r
+  , "      if (bytes > (bytesRemaining + 2)) {"
              // Reset the cursor to the start of the command so the parsed data is
              // removed from the queue when we leave the loop.
   , "        this.expecting = bytes + Buffer.byteLength(data.slice(start, i)) + 2;"
